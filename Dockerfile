@@ -28,6 +28,8 @@ ENV NODE_ENV=production
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+# Sign-in page CSS/JS (served by src/oidc/interactions/assets.ts).
+COPY --from=builder /app/public-assets ./public-assets
 
 # Runtime config comes from the container env (see .env.example).
 # Release step before rollout: docker run --rm --env-file .env <image> node dist/db/migrate.js

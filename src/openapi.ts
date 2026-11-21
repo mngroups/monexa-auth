@@ -1,19 +1,21 @@
+import { generateKeyPairSync } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 
-/**
- * Placeholder env for generating the spec: nothing connects, and `credentials`
- * mode documents the login route (sso apps get authorize-url/callback instead).
- */
+/** Valid but throwaway: generated per process, never persisted. */
+export function throwawaySigningKey(): string {
+  const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  return privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+}
+
+/** Placeholder env for generating the spec: nothing connects and no secret is real. */
 export const OPENAPI_ENV = {
   NODE_ENV: "test",
   LOG_LEVEL: "silent",
   DATABASE_URL: "postgres://openapi:openapi@127.0.0.1:5432/openapi",
-  AUTH_MODE: "credentials",
-  AUTH_ISSUER: "http://127.0.0.1:9000",
-  AUTH_CLIENT_ID: "openapi",
-  AUTH_CLIENT_SECRET: "openapi",
-  S3_BUCKET: "openapi",
-  S3_REGION: "us-east-1",
+  OIDC_ISSUER: "http://127.0.0.1:8080",
+  OIDC_SIGNING_KEY: throwawaySigningKey(),
+  OIDC_COOKIE_KEYS: "openapi",
+  CLIENT_SECRET_KEY: Buffer.alloc(32).toString("base64"),
 } satisfies NodeJS.ProcessEnv;
 
 /** The OpenAPI document `@fastify/swagger` built from every route's Zod schemas. */

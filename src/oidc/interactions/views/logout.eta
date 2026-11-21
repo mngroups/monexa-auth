@@ -1,0 +1,4 @@
+<% layout("./layout", { title: it.m.logoutTitle, autoSubmit: true }) %>
+<%~ it.form %>
+<input type="hidden" name="logout" value="yes" form="op.logoutForm">
+<button type="submit" form="op.logoutForm"><%= it.m.logoutSubmit %></button>

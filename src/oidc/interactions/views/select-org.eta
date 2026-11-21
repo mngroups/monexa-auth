@@ -1,0 +1,14 @@
+<% layout("./layout", { title: it.m.selectOrgTitle, error: it.error }) %>
+<form method="post" action="/interaction/<%= it.uid %>">
+  <input type="hidden" name="uid" value="<%= it.uid %>">
+  <input type="hidden" name="step" value="select-org">
+  <fieldset>
+<% for (const org of it.orgs) { %>
+    <label class="option">
+      <input type="radio" name="org_id" value="<%= org.id %>"<%= org.id === it.checked ? " checked" : "" %> required>
+      <span><%= org.name %></span>
+    </label>
+<% } %>
+  </fieldset>
+  <button type="submit"><%= it.m.selectOrgSubmit %></button>
+</form>

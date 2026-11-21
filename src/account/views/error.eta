@@ -1,0 +1,2 @@
+<% layout("../../oidc/interactions/views/layout", { title: it.m.errorTitle }) %>
+<p class="note"><%= it.message %></p>

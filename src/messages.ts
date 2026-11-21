@@ -1,0 +1,56 @@
+import { MESSAGES } from "@mono/server-kit";
+
+/** Auth-service copy that complements the kit's `MESSAGES`. */
+export const MESSAGES_AUTH = {
+  noAppAccess: "Anda tidak memiliki akses ke aplikasi ini",
+  passwordChangeRequired: "Anda harus mengganti password terlebih dahulu",
+  orgNotEligible: "Anda tidak memiliki akses ke organisasi ini",
+  resetNotAllowed:
+    "User ini juga anggota organisasi lain; reset password hanya bisa dilakukan admin platform",
+  invalidCredentials: MESSAGES.invalidCredentials,
+  orgNotFound: "Organisasi tidak ditemukan",
+  appNotFound: "Aplikasi tidak ditemukan",
+  roleNotFound: "Role tidak ditemukan",
+  userNotFound: "User tidak ditemukan",
+  permissionNotFound: "Permission tidak ditemukan di katalog aplikasi",
+  orgSlugTaken: "Slug organisasi sudah dipakai",
+  clientIdTaken: "Client ID sudah dipakai",
+  permissionTaken: "Permission sudah ada di katalog aplikasi",
+  roleNameTaken: "Nama role sudah dipakai di aplikasi ini",
+  emailTaken: "Email atau username sudah dipakai",
+  platformPermissionReserved:
+    "Permission platform:* hanya boleh ada di aplikasi admin dan tidak bisa diberikan lewat role",
+  selfActionNotAllowed: "Anda tidak dapat mengubah akses, role, atau keanggotaan Anda sendiri",
+  platformAdminProtected: "Admin platform tidak dapat diubah oleh admin organisasi",
+  memberExists: "User sudah menjadi anggota organisasi ini",
+  roleAppNotEnabled: "Aplikasi dari role ini belum diaktifkan untuk organisasi",
+  permissionsNotInCatalog: "Sebagian permission tidak ada di katalog aplikasi",
+  selfRevokeNotAllowed: "Admin platform tidak dapat mencabut aksesnya sendiri",
+  adminAppProtected: "Aplikasi admin Monexa tidak dapat dinonaktifkan",
+  loginTitle: "Masuk ke Monexa",
+  identifierLabel: "Email atau username",
+  passwordLabel: "Password",
+  loginSubmit: "Masuk",
+  selectOrgTitle: "Pilih organisasi",
+  selectOrgSubmit: "Lanjutkan",
+  changePasswordTitle: "Ganti password",
+  currentPasswordLabel: "Password saat ini",
+  newPasswordLabel: "Password baru",
+  confirmPasswordLabel: "Ulangi password baru",
+  changePasswordSubmit: "Simpan password",
+  passwordTooShort: "Password baru minimal 8 karakter",
+  passwordMismatch: "Konfirmasi password tidak sama",
+  currentPasswordWrong: "Password saat ini salah",
+  passwordChangedTitle: "Password berhasil diganti",
+  passwordChanged:
+    "Password Anda telah diganti. Silakan masuk kembali dari aplikasi dengan password baru.",
+  csrfInvalid: "Permintaan tidak valid atau sudah kedaluwarsa, muat ulang halaman lalu coba lagi",
+  interactionNotFound:
+    "Sesi login tidak ditemukan atau sudah kedaluwarsa, silakan ulangi dari aplikasi",
+  errorTitle: "Terjadi kesalahan",
+  logoutTitle: "Sedang keluar",
+  logoutSubmit: "Keluar",
+  loggedOutTitle: "Anda telah keluar",
+  loggedOut:
+    "Anda telah keluar dari Monexa. Silakan tutup halaman ini atau masuk kembali dari aplikasi.",
+} as const;

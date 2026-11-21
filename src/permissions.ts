@@ -1,8 +1,14 @@
 /**
- * This app's permission strings, used with `app.requirePermission(...)`. They are
- * granted per client in the central auth service; add new ones here first.
+ * Permissions of the `monexa-admin` app, used with `app.requirePermission(...)` on
+ * `/api/admin/*`. `platform:*` permissions come only from `is_platform_admin`, never from a role.
  */
 export const PERMISSIONS = {
-  exampleView: "example.item:view",
-  exampleCreate: "example.item:create",
+  platformAll: "platform:all",
+  memberManage: "org.member:manage",
+  roleAssign: "org.role:assign",
+  activityView: "org.activity:view",
 } as const;
+
+/** `platform:*` (and `platform.x:*`) belong only to the admin app's catalog and to `is_platform_admin`. */
+export const isPlatformPermission = (permission: string): boolean =>
+  /^platform[.:]/.test(permission);

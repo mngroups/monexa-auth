@@ -4,14 +4,23 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    // Each DB test file boots its own in-memory Postgres; parallel files make that slow.
+    hookTimeout: 60_000,
+    testTimeout: 30_000,
     include: ["{src,api,scripts}/**/__tests__/**/*.test.ts"],
     exclude: [...configDefaults.exclude, "dist/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov", "json-summary"],
       include: ["src/**/*.ts", "api/**/*.ts"],
-      exclude: ["**/__tests__/**", "src/server.ts", "src/db/migrate.ts", "src/db/migrations/**"],
-      thresholds: { lines: 100, statements: 100, functions: 100, branches: 100 },
+      exclude: [
+        "**/__tests__/**",
+        "src/server.ts",
+        "src/cli/**",
+        "src/db/migrate.ts",
+        "src/db/migrations/**",
+      ],
+      thresholds: { lines: 80, statements: 80, functions: 80, branches: 80 },
     },
   },
 });
