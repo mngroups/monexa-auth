@@ -2,13 +2,12 @@ import { AppError } from "@mono/server-kit";
 import type { Db } from "../../db/client.js";
 import type { Env } from "../../env.js";
 import { MESSAGES_AUTH } from "../../messages.js";
+import { isPlatformPermission } from "../../permissions.js";
 import { findApp } from "./apps.repository.js";
 import { type Actor, audit, orConflict } from "./common.js";
 import * as repo from "./permissions.repository.js";
 
-export const PLATFORM_PREFIX_PERMISSION = "platform:";
-export const isPlatformPermission = (permission: string) =>
-  permission.startsWith(PLATFORM_PREFIX_PERMISSION);
+export { isPlatformPermission };
 
 async function requireApp(db: Db, appId: string) {
   const app = await findApp(db, appId);

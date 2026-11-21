@@ -20,6 +20,8 @@ export const MESSAGES_AUTH = {
   emailTaken: "Email atau username sudah dipakai",
   platformPermissionReserved:
     "Permission platform:* hanya boleh ada di aplikasi admin dan tidak bisa diberikan lewat role",
+  memberExists: "User sudah menjadi anggota organisasi ini",
+  roleAppNotEnabled: "Aplikasi dari role ini belum diaktifkan untuk organisasi",
   permissionsNotInCatalog: "Sebagian permission tidak ada di katalog aplikasi",
   selfRevokeNotAllowed: "Admin platform tidak dapat mencabut aksesnya sendiri",
   loginTitle: "Masuk ke Monexa",

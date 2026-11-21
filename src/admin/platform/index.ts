@@ -13,7 +13,7 @@ import { roleRoutes } from "./roles.routes.js";
 /** `/api/admin/platform/*`: every route needs `platform:all` on a `monexa-admin` token. */
 export async function platformRoutes(app: FastifyInstance, deps: { db: Db; env: Env }) {
   registerAdminGuard(app);
-  app.addHook("onRequest", requireAdmin(deps.env, PERMISSIONS.platformAll));
+  app.addHook("onRequest", requireAdmin(deps, PERMISSIONS.platformAll));
   await app.register(orgRoutes, deps);
   await app.register(appRoutes, deps);
   await app.register(permissionRoutes, deps);

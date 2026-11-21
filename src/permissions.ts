@@ -8,3 +8,7 @@ export const PERMISSIONS = {
   roleAssign: "org.role:assign",
   activityView: "org.activity:view",
 } as const;
+
+/** `platform:*` (and `platform.x:*`) belong only to the admin app's catalog and to `is_platform_admin`. */
+export const isPlatformPermission = (permission: string): boolean =>
+  /^platform[.:]/.test(permission);

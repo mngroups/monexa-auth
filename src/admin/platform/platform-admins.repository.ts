@@ -43,3 +43,12 @@ export async function findAppIdByClientId(db: Db, clientId: string): Promise<str
   const [row] = await db.select({ id: apps.id }).from(apps).where(eq(apps.clientId, clientId));
   return row?.id;
 }
+
+export async function setUserActive(db: Db, userId: string, isActive: boolean) {
+  const [row] = await db
+    .update(users)
+    .set({ isActive, updatedAt: new Date() })
+    .where(eq(users.id, userId))
+    .returning();
+  return row;
+}

@@ -126,3 +126,28 @@ describe("platform admin", () => {
     expect((await allActivity(h.db)).length).toBe(before);
   });
 });
+
+describe("user activation", () => {
+  it("deactivates (revoking all grants and sessions) and reactivates, one row each", async () => {
+    const target = await seedUser(h.db);
+    await h.db.insert(oidcStore).values([
+      { id: "ua-grant", kind: "Grant", payload: { clientId: "x" }, userId: target.id, orgId: null },
+      { id: "ua-sess", kind: "Session", payload: {}, userId: target.id },
+    ]);
+    const off = await h.call("POST", `/users/${target.id}/deactivate`);
+    expect(off.json().data.isActive).toBe(false);
+    const left = await h.db.select().from(oidcStore).where(eq(oidcStore.userId, target.id));
+    expect(left).toEqual([]);
+    expect((await h.call("POST", `/users/${target.id}/activate`)).json().data.isActive).toBe(true);
+    for (const action of ["admin.user.deactivated", "admin.user.activated"]) {
+      const rows = (await activityOf(h.db, action)).filter((r) => r.targetId === target.id);
+      expect(rows, action).toHaveLength(1);
+    }
+  });
+
+  it("refuses to deactivate yourself (422) and answers 404 for an unknown user", async () => {
+    expect((await h.call("POST", `/users/${h.user.id}/deactivate`)).statusCode).toBe(422);
+    expect((await h.call("POST", `/users/${MISSING_ID}/deactivate`)).statusCode).toBe(404);
+    expect((await h.call("POST", `/users/${MISSING_ID}/activate`)).statusCode).toBe(404);
+  });
+});

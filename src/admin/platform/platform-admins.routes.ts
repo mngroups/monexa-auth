@@ -99,4 +99,24 @@ export async function platformAdminRoutes(app: FastifyInstance, { db, env }: { d
       reply.ok(await service.revokePlatformAdmin(db, env, actorOf(request), request.params.id));
     }
   );
+
+  for (const [verb, isActive] of [
+    ["activate", true],
+    ["deactivate", false],
+  ] as const) {
+    r.post(
+      `${base}/:id/${verb}`,
+      {
+        schema: {
+          ...routeMeta,
+          summary: `${verb[0]?.toUpperCase()}${verb.slice(1)} a user`,
+          params: idParams,
+          response: { 200: envelopeSchema(userSchema) },
+        },
+      },
+      async (request, reply) => {
+        reply.ok(await service.setUserActive(db, actorOf(request), request.params.id, isActive));
+      }
+    );
+  }
 }

@@ -67,7 +67,10 @@ export function grantPlatformAdmin(db: Db, actor: Actor, userId: string) {
   });
 }
 
-/** Revoking also ends the user's admin-app grants, so the token's `platform:all` stops at once. */
+/**
+ * Revoking also ends the user's admin-app grants (no new tokens), and the admin guard re-checks
+ * `is_platform_admin` on every request, so an already-issued token loses `platform:all` at once.
+ */
 export function revokePlatformAdmin(db: Db, env: Env, actor: Actor, userId: string) {
   if (actor.userId === userId) throw new AppError(422, MESSAGES_AUTH.selfRevokeNotAllowed);
   return db.transaction(async (tx) => {
@@ -77,6 +80,24 @@ export function revokePlatformAdmin(db: Db, env: Env, actor: Actor, userId: stri
     if (adminAppId) await revokeGrants(tx, { userId, appId: adminAppId });
     await audit(tx, actor, {
       action: "admin.user.platform_admin_revoked",
+      targetType: "user",
+      targetId: userId,
+    });
+    return toUser(user);
+  });
+}
+
+/** Deactivating ends every grant, refresh token and session of the user, everywhere. */
+export function setUserActive(db: Db, actor: Actor, userId: string, isActive: boolean) {
+  if (!isActive && actor.userId === userId) {
+    throw new AppError(422, MESSAGES_AUTH.selfRevokeNotAllowed);
+  }
+  return db.transaction(async (tx) => {
+    const user = await repo.setUserActive(tx, userId, isActive);
+    if (!user) throw new AppError(404, MESSAGES_AUTH.userNotFound);
+    if (!isActive) await revokeGrants(tx, { userId });
+    await audit(tx, actor, {
+      action: isActive ? "admin.user.activated" : "admin.user.deactivated",
       targetType: "user",
       targetId: userId,
     });

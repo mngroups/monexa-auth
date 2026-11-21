@@ -6,7 +6,7 @@ import type { Db } from "../../db/client.js";
 import * as service from "./activity.service.js";
 import { isoDate, PLATFORM_PREFIX, pageOf, pageQuery, routeMeta } from "./common.js";
 
-const activitySchema = z.object({
+export const activitySchema = z.object({
   id: z.string(),
   at: isoDate,
   actorUserId: z.string().nullable(),

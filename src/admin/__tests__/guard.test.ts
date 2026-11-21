@@ -1,3 +1,6 @@
+import { eq } from "drizzle-orm";
+import { addMember, seedOrg, seedUser } from "../../__tests__/fixtures.js";
+import { memberships } from "../../db/schema/index.js";
 import { type Admin, bootAdmin, mintToken } from "./harness.js";
 
 let h: Admin;
@@ -56,5 +59,50 @@ describe("requireAdmin", () => {
   it("checks auth before validating the request", async () => {
     const res = await h.app.inject({ url: "/api/admin/platform/orgs?page=0" });
     expect(res.statusCode).toBe(401);
+  });
+});
+
+describe("requireAdmin re-checks the database", () => {
+  it("returns 401 for a still-valid token of a deactivated user", async () => {
+    const user = await seedUser(h.db, { isPlatformAdmin: true, isActive: false });
+    const token = await mintToken(h.env, { sub: user.id });
+    expect((await list(token)).statusCode).toBe(401);
+  });
+
+  it("returns 401 for a token of a user that no longer exists", async () => {
+    const token = await mintToken(h.env, { sub: "00000000-0000-4000-8000-0000000000aa" });
+    expect((await list(token)).statusCode).toBe(401);
+  });
+
+  it("returns 403 on platform routes once platform admin was revoked, though the token says platform:all", async () => {
+    const user = await seedUser(h.db, { isPlatformAdmin: false });
+    const token = await mintToken(h.env, { sub: user.id });
+    expect((await list(token)).statusCode).toBe(403);
+  });
+
+  it("returns 403 on org routes when the membership of the token's org is inactive or missing", async () => {
+    const org = await seedOrg(h.db);
+    const user = await seedUser(h.db);
+    await addMember(h.db, user.id, org.id, false);
+    const token = await mintToken(h.env, {
+      sub: user.id,
+      orgId: org.id,
+      permissions: ["org.member:manage"],
+    });
+    const members = (bearer: string) =>
+      h.app.inject({
+        url: "/api/admin/org/members",
+        headers: { authorization: `Bearer ${bearer}` },
+      });
+    expect((await members(token)).statusCode).toBe(403);
+    const stranger = await seedUser(h.db);
+    const strangerToken = await mintToken(h.env, {
+      sub: stranger.id,
+      orgId: org.id,
+      permissions: ["org.member:manage"],
+    });
+    expect((await members(strangerToken)).statusCode).toBe(403);
+    await h.db.update(memberships).set({ isActive: true }).where(eq(memberships.userId, user.id));
+    expect((await members(token)).statusCode).toBe(200);
   });
 });
