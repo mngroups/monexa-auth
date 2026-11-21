@@ -106,19 +106,19 @@ An empty value counts as unset. A bad env fails at boot, and the error names the
 docker build --secret id=gitlab_npm_token,env=GITLAB_NPM_TOKEN --build-arg GITLAB_PACKAGE_GROUP_ID=... -t monexa-auth .
 ```
 
-Run migrations as a release step before rollout: `node dist/db/migrate.js` in the image, or the **Migrate** GitHub workflow. Run `pnpm auth:bootstrap` once against the new database (from a checkout with the production env). Migrations never run at boot.
+Run migrations as a release step before rollout: `node dist/db/migrate.js` in the image, or the **Migrate** GitHub workflow. Run `node dist/cli/bootstrap.js` in the image once against the new database (with the `BOOTSTRAP_*` env set; `pnpm auth:bootstrap` is the dev equivalent). Migrations never run at boot.
 
 A Vercel entry (`api/index.ts`, `vercel.json`) is kept from the template and works, but it is not the recommended home for an identity provider. If you use it, set `GITLAB_NPM_TOKEN` and `GITLAB_PACKAGE_GROUP_ID`, a pooled `DATABASE_URL` and `DB_POOL_MAX` of 1-3. Production builds migrate through `scripts/vercel-build.sh`; previews skip migrations unless `MIGRATE_ON_PREVIEW=true`, and `MIGRATION_DATABASE_URL` can hold a direct connection.
 
 ### Expired-row cleanup
 
-`oidc_store` rows (sessions, interactions, codes, tokens) are not deleted when they expire. Run `pnpm auth:cleanup` from cron, for example hourly:
+`oidc_store` rows (sessions, interactions, codes, tokens) are not deleted when they expire. Run the cleanup CLI from cron, for example hourly (`node dist/cli/cleanup.js` in the Docker image; `pnpm auth:cleanup` in a dev checkout):
 
 ```
-0 * * * * cd /srv/monexa-auth && pnpm auth:cleanup
+0 * * * * docker run --rm --env-file /etc/monexa-auth.env monexa-auth node dist/cli/cleanup.js
 ```
 
-It deletes rows with `expires_at < now()` and prints the count. It never runs inside request handling. Without a checkout, `DELETE FROM oidc_store WHERE expires_at < now();` is equivalent.
+It deletes rows with `expires_at < now()` and prints the count. It never runs inside request handling. The plain SQL `DELETE FROM oidc_store WHERE expires_at < now();` is equivalent.
 
 ## Adding an admin feature
 

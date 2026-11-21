@@ -24,8 +24,8 @@
     "db:migrate": "tsx --env-file-if-exists=.env src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "openapi": "tsx scripts/openapi.ts",
-    "auth:bootstrap": "tsx --env-file-if-exists=.env scripts/bootstrap.ts",
-    "auth:cleanup": "tsx --env-file-if-exists=.env scripts/cleanup.ts",
+    "auth:bootstrap": "tsx --env-file-if-exists=.env src/cli/bootstrap.ts",
+    "auth:cleanup": "tsx --env-file-if-exists=.env src/cli/cleanup.ts",
     "registry:run": "node scripts/with-gitlab-registry-auth.mjs"
   },
   "lint-staged": {
