@@ -99,6 +99,11 @@ describe("GET /api/me/orgs", () => {
 describe("verifyOwnToken", () => {
   it("returns sub, clientId and orgId", async () => {
     const token = await mint({ sub: "u1", client_id: "c1", org_id: "o1" });
-    expect(await verifyOwnToken(env, token)).toEqual({ sub: "u1", clientId: "c1", orgId: "o1" });
+    expect(await verifyOwnToken(env, token)).toEqual({
+      sub: "u1",
+      clientId: "c1",
+      orgId: "o1",
+      permissions: [],
+    });
   });
 });

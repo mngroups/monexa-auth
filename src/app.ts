@@ -20,6 +20,7 @@ import {
 } from "fastify-type-provider-zod";
 import type Provider from "oidc-provider";
 import { ACCOUNT_PASSWORD_PATH, accountRoutes } from "./account/routes.js";
+import { platformRoutes } from "./admin/platform/index.js";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
 import { meRoutes } from "./me/routes.js";
@@ -130,6 +131,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   await app.register(interactionRoutes, { db: opts.db, env, provider });
   await app.register(interactionAssets);
   await app.register(accountRoutes, { db: opts.db, env });
+  await app.register(platformRoutes, { db: opts.db, env });
 
   const { closeDb } = opts;
   if (closeDb) app.addHook("onClose", async () => closeDb());
