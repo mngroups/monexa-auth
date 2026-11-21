@@ -19,6 +19,15 @@ export type PasswordLoginResult =
   | { ok: true; user: UserRow }
   | { ok: false; reason: "invalid_credentials" | "password_change_required" };
 
+let dummyHash: Promise<string> | undefined;
+
+/** Burns one argon2 verify so early rejections cost the same as a wrong password. */
+async function equalizeTiming(plain: string): Promise<typeof INVALID> {
+  dummyHash ??= hashPassword("monexa-auth-timing-dummy");
+  await verifyPassword(await dummyHash, plain);
+  return INVALID;
+}
+
 const INVALID = { ok: false, reason: "invalid_credentials" } as const;
 
 /**
@@ -34,16 +43,20 @@ export async function checkPasswordLogin(
 ): Promise<PasswordLoginResult> {
   const now = opts.now ?? new Date();
   const user = await findUserByIdentifier(db, identifier);
-  if (!user?.isActive || !user.passwordHash) return INVALID;
-  if (user.lockedUntil && user.lockedUntil > now) return INVALID;
+  if (!user?.isActive || !user.passwordHash) return equalizeTiming(password);
+  const lockExpired = user.lockedUntil !== null && user.lockedUntil <= now;
+  if (user.lockedUntil && !lockExpired) return equalizeTiming(password);
 
   if (!(await verifyPassword(user.passwordHash, password))) {
     const lockUntil = new Date(now.getTime() + opts.lockMinutes * 60_000).toISOString();
+    // An expired lock starts a fresh failure window: this failure counts as the first.
+    const base = lockExpired ? sql`0` : sql`${users.failedLogins}`;
+    const keepLock = lockExpired ? sql`null` : sql`${users.lockedUntil}`;
     await db
       .update(users)
       .set({
-        failedLogins: sql`${users.failedLogins} + 1`,
-        lockedUntil: sql`case when ${users.failedLogins} + 1 >= ${opts.maxFailures} then ${lockUntil}::timestamptz else ${users.lockedUntil} end`,
+        failedLogins: sql`${base} + 1`,
+        lockedUntil: sql`case when ${base} + 1 >= ${opts.maxFailures} then ${lockUntil}::timestamptz else ${keepLock} end`,
       })
       .where(eq(users.id, user.id));
     return INVALID;

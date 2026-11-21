@@ -1,4 +1,12 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+const verifySpy = vi.hoisted(() => vi.fn());
+vi.mock("@node-rs/argon2", async (orig) => {
+  const actual = await orig<typeof import("@node-rs/argon2")>();
+  verifySpy.mockImplementation(actual.verify);
+  return { ...actual, verify: verifySpy };
+});
+
 import { createTestDb } from "../../__tests__/db.js";
 import { getUser, seedUser } from "../../__tests__/fixtures.js";
 import type { Db } from "../../db/client.js";
@@ -112,5 +120,37 @@ describe("checkPasswordLogin", () => {
   it("uses the default clock when now is omitted", async () => {
     const u = await seedUser(db, { passwordHash: await hashPassword("pw-1234") });
     expect((await checkPasswordLogin(db, u.email, "pw-1234", opts)).ok).toBe(true);
+  });
+
+  it("starts a fresh failure window after a lock expires", async () => {
+    const u = await seedUser(db, { passwordHash: await hashPassword("right-pw") });
+    const now = new Date("2026-02-01T00:00:00Z");
+    for (let i = 0; i < 5; i++) await checkPasswordLogin(db, u.email, "bad", { ...opts, now });
+    const later = new Date("2026-02-01T00:20:00Z");
+    await checkPasswordLogin(db, u.email, "bad", { ...opts, now: later });
+    const one = await getUser(db, u.id);
+    expect(one.failedLogins).toBe(1);
+    expect(one.lockedUntil).toBeNull();
+    for (let i = 0; i < 4; i++)
+      await checkPasswordLogin(db, u.email, "bad", { ...opts, now: later });
+    const again = await getUser(db, u.id);
+    expect(again.failedLogins).toBe(5);
+    expect(again.lockedUntil).not.toBeNull();
+  });
+
+  it("runs a dummy verify for unknown, inactive, passwordless and locked users", async () => {
+    const hashed = await hashPassword("pw-1234");
+    const inactive = await seedUser(db, { passwordHash: hashed, isActive: false });
+    const noHash = await seedUser(db, { passwordHash: null });
+    const locked = await seedUser(db, {
+      passwordHash: hashed,
+      lockedUntil: new Date(Date.now() + 600_000),
+    });
+    for (const id of ["ghost@example.com", inactive.email, noHash.email, locked.email]) {
+      verifySpy.mockClear();
+      const r = await checkPasswordLogin(db, id, "pw-1234", opts);
+      expect(r).toEqual({ ok: false, reason: "invalid_credentials" });
+      expect(verifySpy).toHaveBeenCalledTimes(1);
+    }
   });
 });
