@@ -19,6 +19,7 @@ import {
   type OrgGrant,
   revokeGrant,
 } from "../grant-access.js";
+import { revokeGrants } from "../revoke.js";
 import type { ViewName } from "./render.js";
 
 export type Interaction = Awaited<ReturnType<Provider["interactionDetails"]>>;
@@ -206,6 +207,9 @@ async function changePasswordStep(
       .update(users)
       .set({ passwordHash, mustChangePassword: false, updatedAt: new Date() })
       .where(eq(users.id, user.id));
+    // Every other sign-in ends. This browser's session stays so the interaction can finish;
+    // the grant it is about to get is created after this.
+    await revokeGrants(tx, { userId: user.id }, { keepSessionUid: ctx.interaction.session?.uid });
     await logActivity(tx, {
       actorUserId: user.id,
       orgId: null,
@@ -243,10 +247,23 @@ async function pickerPage(
   return render(ctx, "select-org", { orgs, checked, error }, error ? 400 : 200);
 }
 
-async function sessionGrantId(ctx: Ctx): Promise<string | undefined> {
+/**
+ * Grants of this browser's session that the sign-in being finished replaces: this app's grant
+ * (the session remembers one per app), or every app's grant when another account signs in.
+ * The provider then logs the old account out without revoking them (our authorizations persist
+ * logout), so revoke them here or their refresh tokens would outlive the session.
+ */
+async function replacedGrantIds(ctx: Ctx, accountId: string): Promise<string[]> {
   const uid = ctx.interaction.session?.uid;
   const session = uid ? await ctx.provider.Session.findByUid(uid) : undefined;
-  return session?.grantIdFor(ctx.client.clientId);
+  if (!session) return [];
+  if (session.accountId && session.accountId !== accountId) {
+    return Object.values(session.authorizations ?? {}).flatMap((a) =>
+      a.grantId ? [a.grantId] : []
+    );
+  }
+  const grantId = session.grantIdFor(ctx.client.clientId);
+  return grantId ? [grantId] : [];
 }
 
 /** Resolves access for the org, creates the Grant (with `orgId`, `openid`) and finishes. */
@@ -268,10 +285,9 @@ async function finish(ctx: Ctx, state: FlowState, orgId: string): Promise<Outcom
     return pickerPage(ctx, state, orgs, MESSAGES_AUTH.orgNotEligible);
   }
 
-  // The session remembers one grant per app; the new one replaces it. Revoke the old one
-  // now, or its refresh tokens would outlive the logout (which only revokes the session's).
-  const replaced = await sessionGrantId(ctx);
-  if (replaced) await revokeGrant(ctx.provider, replaced);
+  for (const grantId of await replacedGrantIds(ctx, user.id)) {
+    await revokeGrant(ctx.provider, grantId);
+  }
 
   const grant = new ctx.provider.Grant({
     accountId: user.id,

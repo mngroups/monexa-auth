@@ -19,9 +19,11 @@ export const ORG_SWITCH_PARAMS = ["refresh_token", "org_id"] as const;
 type OrgSwitchParams = { refresh_token?: string; org_id?: string };
 
 /**
- * The org-switch grant: trades a valid refresh token of the authenticating client for a
- * new Grant, access token and refresh token in another org the user may enter. The old
- * Grant (and every token of it) is revoked and `last_org_id` follows the switch.
+ * The org-switch grant: trades a valid refresh token of the authenticating client for a new
+ * access token and refresh token in another org the user may enter. The switch happens in
+ * place: every token of the Grant is revoked, the same Grant moves to the new org and the new
+ * tokens are issued under it, so a browser session that remembers the Grant still ends it at
+ * logout. `last_org_id` follows the switch.
  */
 export function orgSwitchGrantHandler({ db, env }: { db: Db; env: Env }) {
   return async (ctx: TokenEndpointGrantContext<OrgSwitchParams>): Promise<void> => {
@@ -57,15 +59,21 @@ export function orgSwitchGrantHandler({ db, env }: { db: Db; env: Env }) {
       orgId,
       adminClientId: env.ADMIN_CLIENT_ID,
     });
-    if (!access.ok) throw grantRefused(access.reason);
+    if (!access.ok) throw grantRefused("org_not_eligible");
 
     // Consuming first lets only one of two concurrent switches with the same token win.
     await old.consume();
 
-    const grant = new provider.Grant({ accountId: userId, clientId: client.clientId }) as OrgGrant;
+    // Before issuing: the new tokens share the grant id.
+    const grantId = oldGrantId as string;
+    await Promise.all([
+      provider.AccessToken.revokeByGrantId(grantId),
+      provider.RefreshToken.revokeByGrantId(grantId),
+      provider.AuthorizationCode.revokeByGrantId(grantId),
+    ]);
+    const grant = oldGrant as OrgGrant;
     grant.orgId = access.org.id;
-    grant.addOIDCScope("openid");
-    const grantId = await grant.save();
+    await grant.save();
     ctx.oidc.entity("Grant", grant);
 
     const resource = resourceIndicator(client);
@@ -92,7 +100,6 @@ export function orgSwitchGrantHandler({ db, env }: { db: Db; env: Env }) {
     ctx.oidc.entity("RefreshToken", rt);
     const refreshToken = await rt.save();
 
-    await revokeGrant(provider, oldGrantId as string);
     await db.update(users).set({ lastOrgId: access.org.id }).where(eq(users.id, userId));
 
     ctx.body = {

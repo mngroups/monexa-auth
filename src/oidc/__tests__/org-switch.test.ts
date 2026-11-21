@@ -176,6 +176,15 @@ describe("org-switch grant", () => {
     });
   });
 
+  it("answers org_not_eligible even when the user has lost access to every org of the app", async () => {
+    const s = await scenario();
+    await db.update(memberships).set({ isActive: false }).where(eq(memberships.userId, s.user.id));
+    expect(await switchTo(s, s.refresh, s.orgB.id)).toMatchObject({
+      status: 400,
+      body: { error: "invalid_grant", error_description: "org_not_eligible" },
+    });
+  });
+
   it("refuses an inactive user with invalid_credentials", async () => {
     const s = await scenario();
     await db.update(users).set({ isActive: false }).where(eq(users.id, s.user.id));

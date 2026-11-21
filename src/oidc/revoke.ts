@@ -1,4 +1,4 @@
-import { and, eq, inArray, type SQL, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, or, type SQL, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { apps, oidcStore } from "../db/schema/index.js";
 
@@ -11,10 +11,15 @@ const GRANT_KINDS = ["Grant", "AccessToken", "RefreshToken", "AuthorizationCode"
  * match every given filter (`user_id`, `org_id` columns; `appId` through the payload's
  * `clientId`). Sessions carry no org or app, so they go only when the scope is a user alone
  * (the user loses access everywhere); an org or app scope leaves the SSO session, whose next
- * authorization re-checks eligibility. Pass a transaction to make it part of a larger change.
+ * authorization re-checks eligibility. `keepSessionUid` spares one session (the browser the
+ * user is acting from), its grants still go. Pass a transaction to make it part of a larger change.
  * Returns the number of grants removed.
  */
-export async function revokeGrants(db: Db, scope: RevokeScope): Promise<number> {
+export async function revokeGrants(
+  db: Db,
+  scope: RevokeScope,
+  opts: { keepSessionUid?: string } = {}
+): Promise<number> {
   const { userId, orgId, appId } = scope;
   if (!userId && !orgId && !appId) throw new Error("revokeGrants needs a user, org or app");
 
@@ -28,6 +33,9 @@ export async function revokeGrants(db: Db, scope: RevokeScope): Promise<number> 
   }
   const kinds = userId && !orgId && !appId ? [...GRANT_KINDS, "Session"] : GRANT_KINDS;
 
+  if (opts.keepSessionUid) {
+    filters.push(or(ne(oidcStore.kind, "Session"), ne(oidcStore.uid, opts.keepSessionUid)) as SQL);
+  }
   const removed = await db
     .delete(oidcStore)
     .where(and(inArray(oidcStore.kind, kinds), ...filters))

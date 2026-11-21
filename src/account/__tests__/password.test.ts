@@ -162,6 +162,40 @@ describe("POST /account/password", () => {
     expect(JSON.stringify(rows)).not.toContain(TEMP);
   });
 
+  it("ends the user's other sessions: an existing refresh token stops working", async () => {
+    const { app: client, secret } = await seedClient(db, key, { allowedGrants: ["password"] });
+    const org = await seedOrg(db);
+    const user = await tempUser(false);
+    await enableApp(db, org.id, client.id);
+    await addMember(db, user.id, org.id);
+    const token = async (params: Record<string, string>) => {
+      const res = await fetch(`${issuer}/token`, {
+        method: "POST",
+        headers: {
+          authorization: `Basic ${Buffer.from(`${client.clientId}:${secret}`).toString("base64")}`,
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams(params),
+      });
+      return { status: res.status, body: (await res.json()) as Record<string, string> };
+    };
+    const login = await token({
+      grant_type: "password",
+      username: user.email,
+      password: TEMP,
+      scope: "openid",
+    });
+    expect(login.status).toBe(200);
+
+    expect((await submit(fields(user.email))).statusCode).toBe(200);
+    expect(
+      await token({
+        grant_type: "refresh_token",
+        refresh_token: login.body.refresh_token as string,
+      })
+    ).toMatchObject({ status: 400, body: { error: "invalid_grant" } });
+  });
+
   it("also works for a user without a pending change", async () => {
     const user = await tempUser(false);
     const res = await submit(fields(user.email));

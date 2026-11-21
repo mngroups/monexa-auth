@@ -145,7 +145,7 @@ async function scenario() {
   await assignRole(db, user.id, orgA.id, viewer.id);
   await assignRole(db, user.id, orgB.id, editor.id);
   const kit = await kitApp(app.clientId, secret);
-  return { app, orgA, orgB, user, kit };
+  return { app, secret, orgA, orgB, user, kit };
 }
 
 /** Kit authorize-url, then the browser opens it: the redirect to the interaction (or the FE). */
@@ -717,5 +717,196 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     expect((await refresh(first.kit, rotated.json().data.refresh_token)).statusCode).toBe(401);
     const current = await db.select().from(oidcStore).where(eq(oidcStore.userId, first.user.id));
     expect(current.filter((r) => r.kind === "RefreshToken")).toEqual([]);
+  });
+});
+
+/** Follows redirects and self-submitting provider forms (e.g. the logout of another account). */
+async function codeThroughForms(b: Browser, res: Response, state: string): Promise<string> {
+  let current = res;
+  for (let hops = 0; hops < 10; hops++) {
+    if (current.status === 200) {
+      const html = await current.text();
+      const action = /<form[^>]*action="([^"]+)"/.exec(html)?.[1];
+      if (!action) throw new Error("expected a self-submitting form");
+      const fields: Record<string, string> = {};
+      for (const m of html.matchAll(/<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"/g)) {
+        fields[m[1] as string] = m[2] as string;
+      }
+      current = await b.post(action.replace(/&amp;/g, "&"), fields);
+      continue;
+    }
+    const next = location(current);
+    if (next.startsWith(FE_CALLBACK)) {
+      const params = new URL(next).searchParams;
+      expect(params.get("state")).toBe(state);
+      return params.get("code") as string;
+    }
+    current = await b.get(next);
+  }
+  throw new Error("never reached the FE callback");
+}
+
+/** The scenario's user signed in to its app (A) and to a second app (B) in one browser, org A. */
+async function signedIntoTwoApps() {
+  const s = await scenario();
+  const { app: second, secret } = await seedClient(
+    db,
+    key,
+    {
+      allowedGrants: ["authorization_code"],
+      redirectUris: [FE_CALLBACK],
+      postLogoutRedirectUris: [FE_LOGGED_OUT],
+    },
+    CATALOG
+  );
+  for (const org of [s.orgA, s.orgB]) await enableApp(db, org.id, second.id);
+  const kitB = await kitApp(second.clientId, secret);
+  const b = new Browser();
+  const one = await authorize(b, s.kit, { org_hint: s.orgA.id });
+  const done = await b.post(one.next, login(one.next, s.user.email));
+  const tokensA = (await exchange(s.kit, await codeFrom(b, done, one.state), one.verifier)).json()
+    .data;
+  const two = await authorize(b, kitB, { org_hint: s.orgA.id });
+  const tokensB = (
+    await exchange(kitB, await codeFrom(b, await b.get(two.next), two.state), two.verifier)
+  ).json().data;
+  return { ...s, b, kitB, tokensA, tokensB };
+}
+
+async function endSessionFrom(b: Browser, kit: FastifyInstance) {
+  const logout = await kit.inject({ method: "POST", url: "/v1/auth/logout", payload: {} });
+  const page = await (await b.get(logout.json().data.end_session_url)).text();
+  const action = /action="([^"]+)"/.exec(page)?.[1] as string;
+  const xsrf = /name="xsrf" value="([^"]+)"/.exec(page)?.[1] as string;
+  expect(location(await b.post(action, { xsrf, logout: "yes" }))).toBe(FE_LOGGED_OUT);
+}
+
+describe("grants never escape the central session", () => {
+  it("ends every app's grant of the previous account when another account signs in on the browser", async () => {
+    const s = await signedIntoTwoApps();
+    const other = await seedUser(db, { passwordHash });
+    await addMember(db, other.id, s.orgA.id);
+
+    const again = await authorize(s.b, s.kit, { prompt: "login" });
+    const res = await s.b.post(again.next, login(again.next, other.email));
+    const code = await codeThroughForms(s.b, res, again.state);
+    const tokens = await exchange(s.kit, code, again.verifier);
+    expect(tokens.statusCode).toBe(200);
+    expect(decodeJwt(tokens.json().data.access_token)).toMatchObject({ sub: other.id });
+
+    expect((await refresh(s.kit, s.tokensA.refresh_token)).statusCode).toBe(401);
+    expect((await refresh(s.kitB, s.tokensB.refresh_token)).statusCode).toBe(401);
+    expect((await refresh(s.kit, tokens.json().data.refresh_token)).statusCode).toBe(200);
+  });
+
+  it("keeps an org-switched grant in the session, so logout from another app ends it", async () => {
+    const s = await signedIntoTwoApps();
+    const switched = await fetch(`${issuer}/token`, {
+      method: "POST",
+      headers: {
+        authorization: `Basic ${Buffer.from(`${s.app.clientId}:${s.secret}`).toString("base64")}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "urn:monexa:params:oauth:grant-type:org-switch",
+        refresh_token: s.tokensA.refresh_token,
+        org_id: s.orgB.id,
+      }),
+    });
+    expect(switched.status).toBe(200);
+    const body = (await switched.json()) as Record<string, string>;
+    expect(decodeJwt(body.access_token as string)).toMatchObject({ org_id: s.orgB.id });
+
+    await endSessionFrom(s.b, s.kitB);
+    expect((await refresh(s.kit, body.refresh_token as string)).statusCode).toBe(401);
+    expect((await refresh(s.kitB, s.tokensB.refresh_token)).statusCode).toBe(401);
+  });
+
+  it("a forced password change at sign-in ends the user's other sessions, and the sign-in completes", async () => {
+    const s = await scenario();
+    const first = new Browser();
+    const one = await authorize(first, s.kit, { org_hint: s.orgA.id });
+    const old = (
+      await exchange(
+        s.kit,
+        await codeFrom(first, await first.post(one.next, login(one.next, s.user.email)), one.state),
+        one.verifier
+      )
+    ).json().data;
+    await db.update(users).set({ mustChangePassword: true }).where(eq(users.id, s.user.id));
+
+    const second = new Browser();
+    const two = await authorize(second, s.kit, { org_hint: s.orgA.id });
+    const form = await second.post(two.next, login(two.next, s.user.email));
+    expect(await form.text()).toContain('name="new_password"');
+    const done = await second.post(two.next, {
+      uid: uidOf(two.next),
+      step: "change-password",
+      current_password: PASSWORD,
+      new_password: "brand new secret",
+      confirm_password: "brand new secret",
+    });
+    const fresh = await exchange(s.kit, await codeFrom(second, done, two.state), two.verifier);
+    expect(fresh.statusCode).toBe(200);
+    expect((await refresh(s.kit, old.refresh_token)).statusCode).toBe(401);
+    expect((await refresh(s.kit, fresh.json().data.refresh_token)).statusCode).toBe(200);
+  });
+
+  it("a session user's forced password change ends their other grants and still completes", async () => {
+    const s = await signedIntoTwoApps();
+    await db.update(users).set({ mustChangePassword: true }).where(eq(users.id, s.user.id));
+    const { app: third, secret } = await seedClient(db, key, {
+      allowedGrants: ["authorization_code"],
+      redirectUris: [FE_CALLBACK],
+    });
+    await enableApp(db, s.orgA.id, third.id);
+    const kitC = await kitApp(third.clientId, secret);
+    const three = await authorize(s.b, kitC);
+    expect(await (await s.b.get(three.next)).text()).toContain('name="new_password"');
+    const done = await s.b.post(three.next, {
+      uid: uidOf(three.next),
+      step: "change-password",
+      current_password: PASSWORD,
+      new_password: "brand new secret",
+      confirm_password: "brand new secret",
+    });
+    const tokens = await exchange(kitC, await codeFrom(s.b, done, three.state), three.verifier);
+    expect(tokens.statusCode).toBe(200);
+    expect((await refresh(s.kit, s.tokensA.refresh_token)).statusCode).toBe(401);
+    expect((await refresh(s.kitB, s.tokensB.refresh_token)).statusCode).toBe(401);
+    expect((await refresh(kitC, tokens.json().data.refresh_token)).statusCode).toBe(200);
+  });
+});
+
+describe("own-token verification with real issued tokens", () => {
+  it("accepts the access token and refuses the ID token from the same code exchange", async () => {
+    const s = await scenario();
+    const b = new Browser();
+    const one = await authorize(b, s.kit, { org_hint: s.orgA.id });
+    const code = await codeFrom(
+      b,
+      await b.post(one.next, login(one.next, s.user.email)),
+      one.state
+    );
+    const res = await fetch(`${issuer}/token`, {
+      method: "POST",
+      headers: {
+        authorization: `Basic ${Buffer.from(`${s.app.clientId}:${s.secret}`).toString("base64")}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: one.verifier,
+        redirect_uri: FE_CALLBACK,
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, string>;
+    expect(body.id_token).toBeTruthy();
+    const me = (token: string) =>
+      fetch(`${origin}/api/me/orgs`, { headers: { authorization: `Bearer ${token}` } });
+    expect((await me(body.access_token as string)).status).toBe(200);
+    expect((await me(body.id_token as string)).status).toBe(401);
   });
 });

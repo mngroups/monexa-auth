@@ -4,6 +4,7 @@ import { logActivity } from "../activity/log.js";
 import type { Db } from "../db/client.js";
 import { users } from "../db/schema/index.js";
 import type { Env } from "../env.js";
+import { revokeGrants } from "../oidc/revoke.js";
 import { findUserByIdentifier } from "../users/lookup.js";
 import { newPasswordError } from "../users/password-policy.js";
 import { checkPasswordLogin, hashPassword } from "../users/passwords.js";
@@ -62,6 +63,8 @@ export async function changePassword(
       .update(users)
       .set({ passwordHash, mustChangePassword: false, updatedAt: new Date() })
       .where(eq(users.id, user.id));
+    // A new password ends every sign-in made with the old one.
+    await revokeGrants(tx, { userId: user.id });
     await logActivity(tx, {
       actorUserId: user.id,
       orgId: null,
