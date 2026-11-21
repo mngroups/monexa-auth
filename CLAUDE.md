@@ -4,18 +4,25 @@ Fastify 5 backend on `@mono/server-kit` (read its README for the plugin options)
 
 ## Commands
 
-| Command              | What it does                                         |
-| -------------------- | ---------------------------------------------------- |
-| `pnpm test:coverage` | Vitest with PGlite (no Docker). **80%** enforced     |
-| `pnpm typecheck`     | `tsc --noEmit`                                       |
-| `pnpm lint`          | Biome                                                |
-| `pnpm db:generate`   | New migration from `src/db/schema/`                  |
-| `pnpm openapi`       | Regenerate `openapi/openapi.json` (a test checks it) |
+| Command               | What it does                                         |
+| --------------------- | ---------------------------------------------------- |
+| `pnpm test:coverage`  | Vitest with PGlite (no Docker). **80%** enforced     |
+| `pnpm typecheck`      | `tsc --noEmit`                                       |
+| `pnpm lint`           | Biome                                                |
+| `pnpm db:generate`    | New migration from `src/db/schema/`                  |
+| `pnpm openapi`        | Regenerate `openapi/openapi.json` (a test checks it) |
+| `pnpm auth:bootstrap` | First-run admin, admin app, org (idempotent)         |
+| `pnpm auth:cleanup`   | Delete expired `oidc_store` rows (run from cron)     |
 
 ## Rules
 
-- New features copy `src/features/examples`: routes → service → repository.
+- New features follow `src/admin/platform/*` (the examples feature was removed): routes → service → repository.
   - Services never import Fastify. Repositories hold queries only. A test enforces this.
+- Every org-scoped admin route acts on `request.admin.orgId` only, never on an org id from the body or path.
+- Org admins can't act on themselves or on platform admins. `platform:*` permissions are never granted through roles.
+- Never log secrets (passwords, hashes, tokens, client secrets, codes) or identifiers of unknown users.
+- `oidc-provider` is pinned to `~9.15.1`: the org id is persisted through `Grant.IN_PAYLOAD`, an internal. Re-check `src/oidc/provider.ts` and the org tests before bumping it.
+- Expired `oidc_store` rows are removed by `pnpm auth:cleanup` from cron, never from request handling.
 - Every route declares Zod request **and** response schemas.
 - Handlers call `reply.ok(...)` and never `return reply.ok(...)` (it's a type error with a response schema). Expected failures throw the kit's `AppError` with Indonesian copy.
 - Never re-implement what the kit owns:

@@ -45,7 +45,7 @@ importers:
         specifier: ^6.2.18
         version: 6.2.18
       oidc-provider:
-        specifier: ^9.15.1
+        specifier: ~9.15.1
         version: 9.15.1
       openapi-types:
         specifier: ^12.1.3
