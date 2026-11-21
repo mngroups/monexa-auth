@@ -4,7 +4,9 @@
   "buildCommand": "sh scripts/vercel-build.sh",
   "outputDirectory": "public",
   "functions": {
-    "api/index.ts": { "includeFiles": "{public-assets,src/oidc/interactions/views}/**" }
+    "api/index.ts": {
+      "includeFiles": "{public-assets,src/oidc/interactions/views,src/account/views}/**"
+    }
   },
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
 }

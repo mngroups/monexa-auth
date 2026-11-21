@@ -19,6 +19,7 @@ import {
   validatorCompiler,
 } from "fastify-type-provider-zod";
 import type Provider from "oidc-provider";
+import { ACCOUNT_PASSWORD_PATH, accountRoutes } from "./account/routes.js";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
 import { meRoutes } from "./me/routes.js";
@@ -44,13 +45,24 @@ const { version } = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8")
 ) as { version: string };
 
-/** Routes with the tighter `LOGIN_RATE_LIMIT_MAX` (none yet; later routes add themselves). */
-const STRICT_RATE_LIMIT_ROUTES = new Set<string>();
+/** `METHOD url` of the routes with the tighter `LOGIN_RATE_LIMIT_MAX`, keyed by identifier. */
+const STRICT_RATE_LIMIT_ROUTES = new Set<string>([`POST ${ACCOUNT_PASSWORD_PATH}`]);
 const PROBE_ROUTES = new Set(["/health", "/ready"]);
 
 /** Keyed by client IP (real only with TRUST_PROXY behind a proxy). */
 function rateLimitKey(request: FastifyRequest): string {
   return `ip:${request.ip}`;
+}
+
+/**
+ * Strict routes count per submitted identifier (trimmed, lower-cased), so one account can't be
+ * guessed at from many IPs; no identifier falls back to the IP. Runs in preHandler, after the
+ * body is parsed.
+ */
+function strictRateLimitKey(request: FastifyRequest): string {
+  const identifier = (request.body as { identifier?: unknown } | undefined)?.identifier;
+  const id = typeof identifier === "string" ? identifier.trim().toLowerCase() : "";
+  return id ? `id:${id}` : rateLimitKey(request);
 }
 
 /** Builds the app without listening; `src/server.ts` (Docker) and `api/index.ts` (Vercel) share it. */
@@ -83,10 +95,15 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
 
   // Must run before rate-limit's own onRoute hook reads `config.rateLimit`.
   app.addHook("onRoute", (route) => {
-    if (STRICT_RATE_LIMIT_ROUTES.has(route.url)) {
+    if ([route.method].flat().some((m) => STRICT_RATE_LIMIT_ROUTES.has(`${m} ${route.url}`))) {
       route.config = {
         ...route.config,
-        rateLimit: { max: env.LOGIN_RATE_LIMIT_MAX, timeWindow: "1 minute" },
+        rateLimit: {
+          max: env.LOGIN_RATE_LIMIT_MAX,
+          timeWindow: "1 minute",
+          hook: "preHandler",
+          keyGenerator: strictRateLimitKey,
+        },
       };
     }
     // Probes must never be throttled: a 429 on /ready takes the instance out of rotation.
@@ -112,6 +129,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   await mountProvider(app, provider);
   await app.register(interactionRoutes, { db: opts.db, env, provider });
   await app.register(interactionAssets);
+  await app.register(accountRoutes, { db: opts.db, env });
 
   const { closeDb } = opts;
   if (closeDb) app.addHook("onClose", async () => closeDb());

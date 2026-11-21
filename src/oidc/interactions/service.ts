@@ -10,6 +10,7 @@ import { users } from "../../db/schema/index.js";
 import type { Env } from "../../env.js";
 import { MESSAGES_AUTH } from "../../messages.js";
 import { findUserByIdentifier } from "../../users/lookup.js";
+import { newPasswordError } from "../../users/password-policy.js";
 import { checkPasswordLogin, hashPassword } from "../../users/passwords.js";
 import {
   appClient,
@@ -46,8 +47,6 @@ export type InteractionForm = {
  * whether by password in this interaction, and whether a password change is still owed.
  */
 type FlowState = { accountId: string; passwordLogin: boolean; changePassword?: boolean };
-
-const MIN_PASSWORD_LENGTH = 8;
 
 type Ctx = InteractionDeps & { interaction: Interaction; client: Client; audit: Audit };
 
@@ -185,8 +184,8 @@ async function changePasswordStep(
 ): Promise<Outcome> {
   const next = form.new_password ?? "";
   const invalid = (error: string) => render(ctx, "change-password", { error }, 400);
-  if (next.length < MIN_PASSWORD_LENGTH) return invalid(MESSAGES_AUTH.passwordTooShort);
-  if (next !== form.confirm_password) return invalid(MESSAGES_AUTH.passwordMismatch);
+  const policyError = newPasswordError(next, form.confirm_password);
+  if (policyError) return invalid(policyError);
 
   const user = await activeUser(ctx.db, state.accountId);
   if (!user) return render(ctx, "login", { error: MESSAGES.invalidCredentials }, 401);

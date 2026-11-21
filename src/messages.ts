@@ -22,6 +22,10 @@ export const MESSAGES_AUTH = {
   passwordTooShort: "Password baru minimal 8 karakter",
   passwordMismatch: "Konfirmasi password tidak sama",
   currentPasswordWrong: "Password saat ini salah",
+  passwordChangedTitle: "Password berhasil diganti",
+  passwordChanged:
+    "Password Anda telah diganti. Silakan masuk kembali dari aplikasi dengan password baru.",
+  csrfInvalid: "Permintaan tidak valid atau sudah kedaluwarsa, muat ulang halaman lalu coba lagi",
   interactionNotFound:
     "Sesi login tidak ditemukan atau sudah kedaluwarsa, silakan ulangi dari aplikasi",
   errorTitle: "Terjadi kesalahan",
