@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { errors } from "oidc-provider";
 import { z } from "zod";
+import { resolveBrand } from "../../branding/resolve-brand.js";
 import { MESSAGES_AUTH } from "../../messages.js";
 import { allowFormRedirect } from "./csp.js";
 import { renderView } from "./render.js";
@@ -69,7 +70,13 @@ async function respond(
   if (outcome.kind === "render") {
     // The forms' redirect chain ends at the app's (validated) redirect_uri.
     const target = interaction.params.redirect_uri as string | undefined;
-    return sendHtml(reply, outcome.status, renderView(outcome.view, outcome.data), target);
+    const brand = await resolveBrand(deps.db, interaction.params.org_hint);
+    return sendHtml(
+      reply,
+      outcome.status,
+      renderView(outcome.view, { ...outcome.data, brand }),
+      target
+    );
   }
   reply.hijack();
   await deps.provider.interactionFinished(request.raw, reply.raw, outcome.result, {

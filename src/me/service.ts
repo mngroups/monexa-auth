@@ -12,5 +12,6 @@ export async function listMyOrgs(db: Db, env: Env, token: string) {
   const [app] = await db.select({ id: apps.id }).from(apps).where(eq(apps.clientId, clientId));
   // A token of an app that no longer exists is no longer valid.
   if (!app) throw new AppError(401, MESSAGES.invalidToken);
-  return eligibleOrgs(db, sub, app.id, { adminClientId: env.ADMIN_CLIENT_ID });
+  const orgs = await eligibleOrgs(db, sub, app.id, { adminClientId: env.ADMIN_CLIENT_ID });
+  return orgs.map(({ id, name }) => ({ id, name }));
 }

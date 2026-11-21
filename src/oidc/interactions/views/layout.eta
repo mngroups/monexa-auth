@@ -12,7 +12,11 @@
 </head>
 <body>
   <main class="card">
+<% if (it.brand) { %>
+    <img class="brand-logo" src="/branding/orgs/<%= encodeURIComponent(it.brand.slug) %>/logo" alt="<%= it.brand.name %>">
+<% } else { %>
     <p class="brand">Monexa</p>
+<% } %>
     <h1><%= it.title %></h1>
 <% if (it.error) { %>
     <p class="alert" role="alert"><%= it.error %></p>

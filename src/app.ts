@@ -25,6 +25,7 @@ import { orgAdminRoutes } from "./admin/org/index.js";
 import { platformRoutes } from "./admin/platform/index.js";
 import { adminClientAuth } from "./admin-client/routes.js";
 import { LOGO_MAX_BYTES } from "./branding/logo-file.js";
+import { brandingPublicRoutes } from "./branding/public.routes.js";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
 import { meRoutes } from "./me/routes.js";
@@ -135,6 +136,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     throwFileSizeLimit: false,
   });
   await app.register(meRoutes, { db: opts.db, env });
+  await app.register(brandingPublicRoutes, { db: opts.db });
   const provider = opts.provider ?? createProvider({ env, db: opts.db });
   await mountProvider(app, provider);
   await app.register(interactionRoutes, { db: opts.db, env, provider });

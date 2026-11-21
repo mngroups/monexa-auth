@@ -45,8 +45,8 @@ describe("eligibleOrgs", () => {
     for (const o of [zed, alpha, inactiveOrg, inactiveMember]) await enableApp(db, o.id, app.id);
 
     expect(await eligibleOrgs(db, user.id, app.id, { adminClientId })).toEqual([
-      { id: alpha.id, name: "Alpha" },
-      { id: zed.id, name: "Zed" },
+      { id: alpha.id, name: "Alpha", slug: alpha.slug },
+      { id: zed.id, name: "Zed", slug: zed.slug },
     ]);
   });
 

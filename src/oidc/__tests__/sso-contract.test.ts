@@ -17,12 +17,15 @@ import {
 } from "../../__tests__/fixtures.js";
 import { testEnv } from "../../__tests__/helpers.js";
 import { buildApp } from "../../app.js";
+import { PNG } from "../../branding/__tests__/files.js";
+import { upsertLogo } from "../../branding/logo.repository.js";
 import type { Db } from "../../db/client.js";
 import {
   activityLog,
   apps as appsTable,
   memberships,
   oidcStore,
+  organizations,
   users,
 } from "../../db/schema/index.js";
 import type { Env } from "../../env.js";
@@ -316,6 +319,50 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     const done = await b.post(next, login(next, user.email));
     const tokens = await exchange(kit, await codeFrom(b, done, state), verifier);
     expect(decodeJwt(tokens.json().data.access_token)).toMatchObject({ org_id: orgA.id });
+  });
+
+  it("skips the picker for an eligible org_hint given as a slug", async () => {
+    const { orgA, user, kit } = await scenario();
+    const b = new Browser();
+    const { next, state, verifier } = await authorize(b, kit, { org_hint: orgA.slug });
+    const done = await b.post(next, login(next, user.email));
+    const tokens = await exchange(kit, await codeFrom(b, done, state), verifier);
+    expect(decodeJwt(tokens.json().data.access_token)).toMatchObject({ org_id: orgA.id });
+  });
+
+  it("brands the login page with the hinted org's logo, and only for an active org with one", async () => {
+    const { orgA, orgB, user, kit } = await scenario();
+    await upsertLogo(db, {
+      orgId: orgA.id,
+      content: PNG,
+      mime: "image/png",
+      etag: "e1",
+      updatedBy: user.id,
+    });
+    const pageFor = async (hint?: string) => {
+      const b = new Browser();
+      const { next } = await authorize(b, kit, hint ? { org_hint: hint } : {});
+      return (await b.get(next)).text();
+    };
+    for (const hint of [orgA.slug, orgA.id]) {
+      expect(await pageFor(hint)).toContain(`src="/branding/orgs/${orgA.slug}/logo"`);
+    }
+    // No logo, unknown, no hint: the default mark.
+    for (const hint of [orgB.slug, "no-such-org", undefined]) {
+      expect(await pageFor(hint)).not.toContain("/branding/");
+    }
+    await db.update(organizations).set({ isActive: false }).where(eq(organizations.id, orgA.id));
+    expect(await pageFor(orgA.slug)).not.toContain("/branding/");
+    await db.update(organizations).set({ isActive: true }).where(eq(organizations.id, orgA.id));
+  });
+
+  it("reuses the remembered grant for a slug org_hint naming the same org", async () => {
+    const first = await scenario();
+    const b = new Browser();
+    const one = await authorize(b, first.kit, { org_hint: first.orgA.slug });
+    await codeFrom(b, await b.post(one.next, login(one.next, first.user.email)), one.state);
+    const same = await authorize(b, first.kit, { org_hint: first.orgA.slug });
+    expect(same.next).not.toMatch(/\/interaction\//);
   });
 
   it("shows the picker for an org_hint the user cannot enter", async () => {

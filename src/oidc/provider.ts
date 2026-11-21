@@ -1,6 +1,7 @@
 import { MESSAGES } from "@mono/server-kit";
 import { eq } from "drizzle-orm";
 import Provider, { type Client, type Configuration, type KoaContextWithOIDC } from "oidc-provider";
+import { hintNamesOrg } from "../access/org-hint.js";
 import { resolveAccess } from "../access/permissions.js";
 import type { Db } from "../db/client.js";
 import { users } from "../db/schema/index.js";
@@ -108,7 +109,7 @@ export function createProvider({ env, db }: { env: Env; db: Db }): Provider {
       if (!grant?.orgId) return undefined;
       if (fresh) return grant;
       const hint = oidc.params?.org_hint;
-      if (hint && hint !== grant.orgId) return undefined;
+      if (hint && !(await hintNamesOrg(db, grant.orgId, hint))) return undefined;
       return (await stillAllowed(client, grant)) ? grant : undefined;
     },
     renderError: (ctx, out) =>
