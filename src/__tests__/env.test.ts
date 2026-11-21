@@ -1,16 +1,16 @@
+import { generateKeyPairSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
 import { loadEnv } from "../env.js";
+import { throwawaySigningKey } from "../openapi.js";
 
 const minimal = {
   DATABASE_URL: "postgres://monexa:monexa@localhost:5432/monexa",
-  AUTH_MODE: "credentials",
-  AUTH_ISSUER: "http://localhost:9000",
-  AUTH_CLIENT_ID: "monexa-app",
-  AUTH_CLIENT_SECRET: "dev-secret",
-  S3_BUCKET: "monexa-dev",
-  S3_REGION: "us-east-1",
+  OIDC_ISSUER: "http://localhost:8080",
+  OIDC_SIGNING_KEY: throwawaySigningKey(),
+  OIDC_COOKIE_KEYS: "k1",
+  CLIENT_SECRET_KEY: Buffer.alloc(32, 7).toString("base64"),
 };
 
 describe("loadEnv", () => {
@@ -21,73 +21,82 @@ describe("loadEnv", () => {
       PORT: 8080,
       LOG_LEVEL: "info",
       DB_POOL_MAX: 10,
-      AUTH_REDIRECT_URIS: [],
+      OIDC_COOKIE_KEYS: ["k1"],
+      ADMIN_CLIENT_ID: "monexa-admin",
+      LOCKOUT_MAX_FAILURES: 5,
+      LOCKOUT_MINUTES: 15,
       CORS_ORIGINS: [],
       RATE_LIMIT_MAX: 300,
       LOGIN_RATE_LIMIT_MAX: 10,
       TRUST_PROXY: false,
-      S3_FORCE_PATH_STYLE: false,
-      UPLOAD_MAX_BYTES: 10485760,
-      UPLOAD_ALLOWED_TYPES: ["application/pdf", "image/jpeg", "image/png"],
     });
   });
 
   it("trims list entries and drops empty ones", () => {
     const env = loadEnv({
       ...minimal,
-      AUTH_REDIRECT_URIS: " http://a/cb , ,http://b/cb,",
+      OIDC_COOKIE_KEYS: " a , ,b,",
       CORS_ORIGINS: "http://localhost:3000, ",
-      UPLOAD_ALLOWED_TYPES: "image/png ,,",
     });
-    expect(env.AUTH_REDIRECT_URIS).toEqual(["http://a/cb", "http://b/cb"]);
+    expect(env.OIDC_COOKIE_KEYS).toEqual(["a", "b"]);
     expect(env.CORS_ORIGINS).toEqual(["http://localhost:3000"]);
-    expect(env.UPLOAD_ALLOWED_TYPES).toEqual(["image/png"]);
   });
 
   it("parses booleans and numbers from strings", () => {
-    const env = loadEnv({
-      ...minimal,
-      S3_FORCE_PATH_STYLE: "true",
-      PORT: "3001",
-      DB_POOL_MAX: "2",
-    });
-    expect(env).toMatchObject({ S3_FORCE_PATH_STYLE: true, PORT: 3001, DB_POOL_MAX: 2 });
+    const env = loadEnv({ ...minimal, TRUST_PROXY: "true", PORT: "3001", LOCKOUT_MINUTES: "30" });
+    expect(env).toMatchObject({ TRUST_PROXY: true, PORT: 3001, LOCKOUT_MINUTES: 30 });
   });
 
-  it("requires S3 credentials as a pair", () => {
-    expect(() => loadEnv({ ...minimal, S3_ACCESS_KEY_ID: "minio" })).toThrow(
-      /S3_SECRET_ACCESS_KEY: /
+  it("requires at least one cookie key", () => {
+    expect(() => loadEnv({ ...minimal, OIDC_COOKIE_KEYS: " , " })).toThrow(/OIDC_COOKIE_KEYS/);
+  });
+
+  it("rejects a CLIENT_SECRET_KEY that is not 32 bytes, naming it but not echoing it", () => {
+    const short = Buffer.alloc(16, 9).toString("base64");
+    let message = "";
+    try {
+      loadEnv({ ...minimal, CLIENT_SECRET_KEY: short });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain("CLIENT_SECRET_KEY");
+    expect(message).not.toContain(short);
+  });
+
+  it("requires an RSA private key, and accepts literal \\n escapes", () => {
+    expect(() => loadEnv({ ...minimal, OIDC_SIGNING_KEY: "not a pem" })).toThrow(
+      /OIDC_SIGNING_KEY/
     );
-    expect(() => loadEnv({ ...minimal, S3_SECRET_ACCESS_KEY: "minio12345" })).toThrow(
-      /S3_ACCESS_KEY_ID: /
-    );
-    expect(() =>
-      loadEnv({ ...minimal, S3_ACCESS_KEY_ID: "minio", S3_SECRET_ACCESS_KEY: "minio12345" })
-    ).not.toThrow();
+    const escaped = minimal.OIDC_SIGNING_KEY.trim().replace(/\n/g, "\\n");
+    expect(loadEnv({ ...minimal, OIDC_SIGNING_KEY: escaped }).OIDC_SIGNING_KEY).toContain("\n");
+    const ec = generateKeyPairSync("ec", { namedCurve: "P-256" })
+      .privateKey.export({ type: "pkcs8", format: "pem" })
+      .toString();
+    expect(() => loadEnv({ ...minimal, OIDC_SIGNING_KEY: ec })).toThrow(/OIDC_SIGNING_KEY/);
   });
 
   it("names a missing variable without echoing any value", () => {
     const { DATABASE_URL: _omit, ...rest } = minimal;
     let message = "";
     try {
-      loadEnv({ ...rest, AUTH_MODE: "magic" });
+      loadEnv({ ...rest, LOCKOUT_MAX_FAILURES: "many" });
     } catch (error) {
       message = (error as Error).message;
     }
     expect(message).toContain("DATABASE_URL");
-    expect(message).toContain("AUTH_MODE");
-    expect(message).not.toContain("dev-secret");
-    expect(message).not.toContain("magic");
+    expect(message).toContain("LOCKOUT_MAX_FAILURES");
+    expect(message).not.toContain("many");
   });
 
   it("treats empty values as unset", () => {
-    const env = loadEnv({ ...minimal, AUTH_IDP_HINT: "", PORT: "" });
-    expect(env.AUTH_IDP_HINT).toBeUndefined();
+    const env = loadEnv({ ...minimal, LOG_LEVEL: "", PORT: "" });
     expect(env.PORT).toBe(8080);
   });
 
-  it("accepts the committed .env.example", () => {
+  it("accepts the committed .env.example, including its dev RSA key", () => {
     const example = parseEnv(readFileSync(join(import.meta.dirname, "../../.env.example"), "utf8"));
-    expect(() => loadEnv(example)).not.toThrow();
+    const env = loadEnv(example);
+    expect(env.OIDC_SIGNING_KEY).toMatch(/^-----BEGIN PRIVATE KEY-----\n/);
+    expect(Buffer.from(env.CLIENT_SECRET_KEY, "base64")).toHaveLength(32);
   });
 });

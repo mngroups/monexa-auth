@@ -1,11 +1,6 @@
-# Monexa API Template
+# Monexa Auth
 
-The backend half of a Monexa app. It pairs with `monexa-app-template`, the Next.js frontend. The stack is Fastify 5 on [`@mono/server-kit`](../mono-server-kit), with:
-- central OIDC auth, RBAC and the response envelope;
-- PostgreSQL + Drizzle;
-- Zod schemas as the single source for validation, serialization and OpenAPI;
-- Vitest with 100% coverage enforced;
-- Docker **or** Vercel deployment, chosen per app.
+The central OIDC provider for Monexa apps: `oidc-provider` on Fastify 5 and [`@mono/server-kit`](../mono-server-kit), with PostgreSQL + Drizzle, Zod schemas, Vitest at 100% coverage, and Docker **or** Vercel deployment. Copied from `monexa-api-template`; the template's examples feature, attachments and kit `auth` plugin are removed.
 
 ## Quick start
 

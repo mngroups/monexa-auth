@@ -1,6 +1,6 @@
-# Monexa API: agent guide
+# Monexa Auth: agent guide
 
-Fastify 5 backend on `@mono/server-kit` (read its README for the plugin options). ESM, TypeScript (NodeNext), Node 24, pnpm 10.33.0. Postgres via Drizzle. See `README.md` for setup.
+Fastify 5 backend on `@mono/server-kit` (read its README for the plugin options). ESM, TypeScript (NodeNext), Node 24, pnpm 10.33.0. Postgres via Drizzle. This is `monexa-auth`, the central OIDC provider for Monexa apps (copied from `monexa-api-template`; the template text below still applies where it mentions features, env or `examples`). See `README.md` for setup.
 
 ## Commands
 

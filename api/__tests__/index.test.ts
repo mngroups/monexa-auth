@@ -35,8 +35,8 @@ describe("Vercel handler", () => {
     const first = await fetch(`${base}/health`);
     expect(first.status).toBe(200);
     expect(await first.json()).toMatchObject({ success: true, data: { status: "ok" } });
-    const second = await fetch(`${base}/v1/examples`);
-    expect(second.status).toBe(401);
+    const second = await fetch(`${base}/nope`);
+    expect(second.status).toBe(404);
     expect(built.count).toBe(1);
   });
 });

@@ -5,8 +5,6 @@ import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import {
   AppError,
-  auth,
-  createPresigner,
   createServerOptions,
   envelope,
   errorHandler,
@@ -22,36 +20,17 @@ import {
 } from "fastify-type-provider-zod";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
-import { attachmentRoutes } from "./features/attachments/routes.js";
-import { createExamplesRepository } from "./features/examples/repository.js";
-import { exampleRoutes } from "./features/examples/routes.js";
-import { createExamplesService } from "./features/examples/service.js";
 
 /** App copy that complements the kit's `MESSAGES`. */
 export const MESSAGES_APP = {
   rateLimited: "Terlalu banyak permintaan, coba lagi nanti",
 } as const;
 
-export type Presigner = ReturnType<typeof createPresigner>;
-
 export type BuildAppOptions = {
   env: Env;
   db: Db;
   closeDb?: () => Promise<void>;
-  presigner?: Presigner;
 };
-
-function presignerFromEnv(env: Env): Presigner {
-  const { S3_ACCESS_KEY_ID: accessKeyId, S3_SECRET_ACCESS_KEY: secretAccessKey } = env;
-  return createPresigner({
-    bucket: env.S3_BUCKET,
-    region: env.S3_REGION,
-    endpoint: env.S3_ENDPOINT,
-    forcePathStyle: env.S3_FORCE_PATH_STYLE,
-    // Without static keys the AWS SDK credential chain applies (IAM role, env, profile).
-    credentials: accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : undefined,
-  });
-}
 
 const { version } = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8")
@@ -60,17 +39,8 @@ const { version } = JSON.parse(
 const STRICT_RATE_LIMIT_ROUTES = new Set(["/v1/auth/login", "/v1/auth/callback"]);
 const PROBE_ROUTES = new Set(["/health", "/ready"]);
 
-/**
- * The FE calls this API from its server, so every request shares one peer address.
- * Key by user when authenticated, by username on login (brute-force protection per
- * account), and by client IP otherwise (real only with TRUST_PROXY behind a proxy).
- */
+/** Keyed by client IP (real only with TRUST_PROXY behind a proxy). */
 function rateLimitKey(request: FastifyRequest): string {
-  if (request.user) return `user:${request.user.id}`;
-  const username = (request.body as { username?: unknown } | undefined)?.username;
-  if (request.routeOptions.url === "/v1/auth/login" && typeof username === "string") {
-    return `login:${username.trim().toLowerCase()}`;
-  }
   return `ip:${request.ip}`;
 }
 
@@ -87,7 +57,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   // #region handbook:app-wiring
   // Registered first so it sees every route (`pnpm openapi` writes the spec).
   await app.register(swagger, {
-    openapi: { info: { title: "Monexa API", version } },
+    openapi: { info: { title: "Monexa Auth", version } },
     transform: jsonSchemaTransform,
   });
   await app.register(requestId);
@@ -110,33 +80,12 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   await app.register(rateLimit, {
     max: env.RATE_LIMIT_MAX,
     timeWindow: "1 minute",
-    // After auth (onRequest) and body parsing, so the key can be the user or the login name.
-    hook: "preHandler",
     keyGenerator: rateLimitKey,
     errorResponseBuilder: () => new AppError(429, MESSAGES_APP.rateLimited),
   });
 
-  await app.register(auth, {
-    mode: env.AUTH_MODE,
-    issuer: env.AUTH_ISSUER,
-    clientId: env.AUTH_CLIENT_ID,
-    clientSecret: env.AUTH_CLIENT_SECRET,
-    redirectUris: env.AUTH_REDIRECT_URIS,
-    idpHint: env.AUTH_IDP_HINT,
-    postLogoutRedirectUri: env.AUTH_POST_LOGOUT_REDIRECT_URI,
-  });
   await app.register(health, { checks: { db: () => opts.db.execute(sql`select 1`) } });
   // #endregion
-
-  await app.register(exampleRoutes, {
-    service: createExamplesService(createExamplesRepository(opts.db)),
-  });
-
-  await app.register(attachmentRoutes, {
-    presigner: opts.presigner ?? presignerFromEnv(env),
-    maxBytes: env.UPLOAD_MAX_BYTES,
-    allowedTypes: env.UPLOAD_ALLOWED_TYPES,
-  });
 
   const { closeDb } = opts;
   if (closeDb) app.addHook("onClose", async () => closeDb());

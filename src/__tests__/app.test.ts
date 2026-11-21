@@ -1,24 +1,21 @@
-import type { DevIssuer } from "@mono/server-kit/dev";
+import { MESSAGES } from "@mono/server-kit";
 import type { FastifyInstance } from "fastify";
 import { buildApp, MESSAGES_APP } from "../app.js";
+import { createDb } from "../db/client.js";
+import { MESSAGES_AUTH } from "../messages.js";
 import { PERMISSIONS } from "../permissions.js";
-import { bearer, okDb, startTestIssuer, testEnv, tokenFor } from "./helpers.js";
+import { okDb, testEnv } from "./helpers.js";
 
-let issuer: DevIssuer;
 const apps: FastifyInstance[] = [];
 
-async function app(overrides: Record<string, string> = {}) {
-  const instance = await buildApp({ env: testEnv(issuer.issuer(), overrides), db: okDb as never });
+async function app(overrides: Record<string, string> = {}, db: unknown = okDb) {
+  const instance = await buildApp({ env: testEnv(overrides), db: db as never });
   apps.push(instance);
   return instance;
 }
 
-beforeAll(async () => {
-  issuer = await startTestIssuer();
-});
 afterAll(async () => {
   await Promise.all(apps.map((a) => a.close()));
-  await issuer.app.close();
 });
 
 describe("buildApp", () => {
@@ -32,44 +29,6 @@ describe("buildApp", () => {
     const missing = await a.inject({ url: "/nope" });
     expect(missing.statusCode).toBe(404);
     expect(missing.json()).toMatchObject({ success: false, code: 404 });
-  });
-
-  it("guards routes with the central auth plugin", async () => {
-    const a = await app();
-    expect((await a.inject({ url: "/v1/auth/check" })).statusCode).toBe(401);
-    const token = await tokenFor(issuer, ["example:all"]);
-    const res = await a.inject({ url: "/v1/auth/check", headers: bearer(token) });
-    expect(res.statusCode).toBe(200);
-    expect(res.json().data).toEqual({ user_id: "user-1", permissions: ["example:all"] });
-  });
-
-  it("proxies credentials login to the issuer", async () => {
-    const a = await app();
-    const res = await a.inject({
-      method: "POST",
-      url: "/v1/auth/login",
-      payload: { username: "admin", password: "admin123" },
-    });
-    expect(res.statusCode).toBe(200);
-    expect(res.json().data.access_token).toEqual(expect.any(String));
-  });
-
-  it("maps sso env into the auth plugin", async () => {
-    const a = await app({
-      AUTH_MODE: "sso",
-      AUTH_REDIRECT_URIS: "http://localhost:3000/auth/callback",
-      AUTH_IDP_HINT: "google",
-      AUTH_POST_LOGOUT_REDIRECT_URI: "http://localhost:3000/login",
-    });
-    const res = await a.inject({
-      url: `/v1/auth/authorize-url?redirect_uri=${encodeURIComponent("http://localhost:3000/auth/callback")}`,
-    });
-    expect(res.statusCode).toBe(200);
-    expect(new URL(res.json().data.url).searchParams.get("kc_idp_hint")).toBe("google");
-    const out = await a.inject({ method: "POST", url: "/v1/auth/logout" });
-    expect(
-      new URL(out.json().data.end_session_url).searchParams.get("post_logout_redirect_uri")
-    ).toBe("http://localhost:3000/login");
   });
 
   it("sends security headers", async () => {
@@ -89,14 +48,11 @@ describe("buildApp", () => {
     expect(none.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
-  it("rate-limits login more tightly, with an Indonesian envelope", async () => {
+  it("rate-limits the strict routes more tightly, with an Indonesian envelope", async () => {
     const a = await app({ LOGIN_RATE_LIMIT_MAX: "2" });
-    const login = () =>
-      a.inject({
-        method: "POST",
-        url: "/v1/auth/login",
-        payload: { username: "admin", password: "admin123" },
-      });
+    a.post("/v1/auth/login", async (_req, reply) => reply.send({ ok: true }));
+    a.get("/other", async (_req, reply) => reply.send({ ok: true }));
+    const login = () => a.inject({ method: "POST", url: "/v1/auth/login" });
     await login();
     await login();
     const third = await login();
@@ -108,37 +64,15 @@ describe("buildApp", () => {
       data: null,
     });
     // Other routes keep the global limit.
-    expect(
-      (await a.inject({ method: "POST", url: "/v1/auth/refresh", payload: { refresh_token: "x" } }))
-        .statusCode
-    ).not.toBe(429);
+    expect((await a.inject({ url: "/other" })).statusCode).toBe(200);
   });
 
   it("applies the global rate limit to anonymous routes", async () => {
     const a = await app({ RATE_LIMIT_MAX: "2" });
-    const refresh = () =>
-      a.inject({ method: "POST", url: "/v1/auth/refresh", payload: { refresh_token: "x" } });
-    await refresh();
-    await refresh();
-    expect((await refresh()).statusCode).toBe(429);
-  });
-
-  it("keys login limits per username, not per (shared) FE server address", async () => {
-    const a = await app({ LOGIN_RATE_LIMIT_MAX: "1" });
-    const login = (username: string) =>
-      a.inject({ method: "POST", url: "/v1/auth/login", payload: { username, password: "x" } });
-    await login("admin");
-    expect((await login("Admin")).statusCode).toBe(429);
-    expect((await login("viewer")).statusCode).not.toBe(429);
-  });
-
-  it("keys authenticated requests per user", async () => {
-    const a = await app({ RATE_LIMIT_MAX: "1" });
-    const one = await issuer.signTestToken({ sub: "u-1", aud: "monexa-app", permissions: [] });
-    const two = await issuer.signTestToken({ sub: "u-2", aud: "monexa-app", permissions: [] });
-    expect((await a.inject({ url: "/v1/auth/check", headers: bearer(one) })).statusCode).toBe(200);
-    expect((await a.inject({ url: "/v1/auth/check", headers: bearer(one) })).statusCode).toBe(429);
-    expect((await a.inject({ url: "/v1/auth/check", headers: bearer(two) })).statusCode).toBe(200);
+    a.get("/other", async (_req, reply) => reply.send({ ok: true }));
+    await a.inject({ url: "/other" });
+    await a.inject({ url: "/other" });
+    expect((await a.inject({ url: "/other" })).statusCode).toBe(429);
   });
 
   it("never rate-limits health and readiness probes", async () => {
@@ -149,26 +83,52 @@ describe("buildApp", () => {
     }
   });
 
-  it("uses X-Forwarded-For for anonymous requests only when TRUST_PROXY is on", async () => {
-    const refresh = (a: FastifyInstance, ip: string) =>
-      a.inject({
-        method: "POST",
-        url: "/v1/auth/refresh",
-        headers: { "x-forwarded-for": ip },
-        payload: { refresh_token: "nope" },
-      });
+  it("uses X-Forwarded-For only when TRUST_PROXY is on", async () => {
+    const hit = (a: FastifyInstance, ip: string) =>
+      a.inject({ url: "/other", headers: { "x-forwarded-for": ip } });
     const trusted = await app({ RATE_LIMIT_MAX: "1", TRUST_PROXY: "true" });
-    await refresh(trusted, "203.0.113.1");
-    expect((await refresh(trusted, "203.0.113.2")).statusCode).not.toBe(429);
+    trusted.get("/other", async (_req, reply) => reply.send({ ok: true }));
+    await hit(trusted, "203.0.113.1");
+    expect((await hit(trusted, "203.0.113.2")).statusCode).toBe(200);
     const untrusted = await app({ RATE_LIMIT_MAX: "1" });
-    await refresh(untrusted, "203.0.113.1");
-    expect((await refresh(untrusted, "203.0.113.2")).statusCode).toBe(429);
+    untrusted.get("/other", async (_req, reply) => reply.send({ ok: true }));
+    await hit(untrusted, "203.0.113.1");
+    expect((await hit(untrusted, "203.0.113.2")).statusCode).toBe(429);
   });
 
-  it("exposes the app's permission catalog", () => {
+  it("still boots with an unreachable database: readiness names the db", async () => {
+    const { db, close } = createDb("postgres://u:p@127.0.0.1:1/x", 1);
+    let closed = false;
+    const instance = await buildApp({
+      env: testEnv(),
+      db,
+      closeDb: async () => {
+        closed = true;
+        await close();
+      },
+    });
+    expect((await instance.inject({ url: "/health" })).statusCode).toBe(200);
+    const ready = await instance.inject({ url: "/ready" });
+    expect(ready.statusCode).toBe(503);
+    expect(ready.json().data).toEqual({ checks: { db: "fail" } });
+    await instance.close();
+    expect(closed).toBe(true);
+  });
+
+  it("exposes the admin permission catalog and Indonesian auth copy", () => {
     expect(PERMISSIONS).toEqual({
-      exampleView: "example.item:view",
-      exampleCreate: "example.item:create",
+      platformAll: "platform:all",
+      memberManage: "org.member:manage",
+      roleAssign: "org.role:assign",
+      activityView: "org.activity:view",
+    });
+    expect(MESSAGES_AUTH).toEqual({
+      noAppAccess: "Anda tidak memiliki akses ke aplikasi ini",
+      passwordChangeRequired: "Anda harus mengganti password terlebih dahulu",
+      orgNotEligible: "Anda tidak memiliki akses ke organisasi ini",
+      resetNotAllowed:
+        "User ini juga anggota organisasi lain; reset password hanya bisa dilakukan admin platform",
+      invalidCredentials: MESSAGES.invalidCredentials,
     });
   });
 });

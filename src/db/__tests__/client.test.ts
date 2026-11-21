@@ -1,26 +1,5 @@
 import { sql } from "drizzle-orm";
-import { createTestDb } from "../../__tests__/db.js";
 import { createDb } from "../client.js";
-import { examples } from "../schema/index.js";
-
-describe("schema + migrations", () => {
-  it("creates the examples table with its defaults", async () => {
-    const { db, close } = await createTestDb();
-    const [row] = await db.insert(examples).values({ name: "Pertama" }).returning();
-    expect(row).toMatchObject({ name: "Pertama", note: "", status: "active" });
-    expect(row?.id).toMatch(/^[0-9a-f-]{36}$/);
-    expect(row?.createdAt).toBeInstanceOf(Date);
-    await close();
-  });
-
-  it("rejects a status outside active/inactive", async () => {
-    const { db, close } = await createTestDb();
-    await expect(
-      db.insert(examples).values({ name: "x", status: "archived" as "active" })
-    ).rejects.toThrow();
-    await close();
-  });
-});
 
 describe("createDb", () => {
   it("does not connect until queried, and fails when the database is unreachable", async () => {
