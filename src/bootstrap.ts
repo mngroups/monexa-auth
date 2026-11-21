@@ -26,13 +26,16 @@ export type BootstrapParams = {
   adminClientId: string;
   /** Decoded CLIENT_SECRET_KEY (32 bytes). */
   secretKey: Buffer;
+  /** Issue a new admin app secret even though the app exists (recovery when it was lost). */
+  rotateAdminSecret?: boolean;
 };
 
 /**
  * First-run setup, safe to repeat: the platform admin, the sso-only admin app with its
  * permission catalog, the "Org Admin" role and the "Monexa" org with the admin app enabled
  * (the admin is a member). Existing rows are kept as they are, except that the admin user is
- * made an active platform admin again. The client secret is returned only when the app is created.
+ * made an active platform admin again. The client secret is returned only when the app is created,
+ * or when `rotateAdminSecret` replaces the existing one.
  */
 export async function bootstrap(
   db: Db,
@@ -76,6 +79,12 @@ export async function bootstrap(
           allowedGrants: ["authorization_code"],
         })
         .returning();
+      adminClientSecret = secret;
+    } else if (p.rotateAdminSecret) {
+      await tx
+        .update(apps)
+        .set({ clientSecretEnc: encryptSecret(secret, p.secretKey), updatedAt: new Date() })
+        .where(eq(apps.id, app.id));
       adminClientSecret = secret;
     }
     const appId = (app as { id: string }).id;
@@ -140,5 +149,6 @@ export function readBootstrapEnv(
     adminRedirectUris: uris.length > 0 ? uris : [DEFAULT_REDIRECT],
     adminClientId: env.ADMIN_CLIENT_ID,
     secretKey: Buffer.from(env.CLIENT_SECRET_KEY, "base64"),
+    rotateAdminSecret: source.BOOTSTRAP_ROTATE_ADMIN_SECRET === "true",
   };
 }

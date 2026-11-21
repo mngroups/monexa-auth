@@ -14,7 +14,9 @@ try {
     console.log(`Admin app client id: ${params.adminClientId}`);
     console.log(`Admin app client secret (shown once, store it now): ${adminClientSecret}`);
   } else {
-    console.log("Admin app already exists; its client secret is unchanged.");
+    console.log(
+      "Admin app already exists; its client secret is unchanged (BOOTSTRAP_ROTATE_ADMIN_SECRET=true issues a new one)."
+    );
   }
 } catch (err) {
   // Message only: a driver error object can carry the query, its params and the connection string.

@@ -106,6 +106,30 @@ describe("bootstrap", () => {
   });
 });
 
+describe("bootstrap with rotateAdminSecret (lost admin app secret)", () => {
+  it("issues a new admin app secret on a repeat run, replacing the stored one", async () => {
+    const [before] = await db.select().from(apps).where(eq(apps.clientId, "monexa-admin"));
+    const { adminClientSecret } = await bootstrap(db, { ...params, rotateAdminSecret: true });
+    expect(adminClientSecret).toEqual(expect.any(String));
+    const [after] = await db.select().from(apps).where(eq(apps.clientId, "monexa-admin"));
+    expect(decryptSecret(after?.clientSecretEnc as string, secretKey)).toBe(adminClientSecret);
+    expect(after?.clientSecretEnc).not.toBe(before?.clientSecretEnc);
+    expect((await bootstrap(db, params)).adminClientSecret).toBeNull();
+  });
+
+  it("reads BOOTSTRAP_ROTATE_ADMIN_SECRET", () => {
+    const env = {
+      ADMIN_CLIENT_ID: "monexa-admin",
+      CLIENT_SECRET_KEY: secretKey.toString("base64"),
+    };
+    const base = { BOOTSTRAP_ADMIN_EMAIL: "a@b.co", BOOTSTRAP_ADMIN_PASSWORD: "long-enough-pw" };
+    expect(readBootstrapEnv(base, env).rotateAdminSecret).toBe(false);
+    expect(
+      readBootstrapEnv({ ...base, BOOTSTRAP_ROTATE_ADMIN_SECRET: "true" }, env).rotateAdminSecret
+    ).toBe(true);
+  });
+});
+
 describe("readBootstrapEnv", () => {
   const env = { ADMIN_CLIENT_ID: "monexa-admin", CLIENT_SECRET_KEY: secretKey.toString("base64") };
 

@@ -22,7 +22,9 @@ pnpm auth:bootstrap         # prints the admin app's client secret once
 pnpm dev                    # http://localhost:9000, OIDC under /oidc
 ```
 
-`pnpm auth:bootstrap` is idempotent. It creates the platform admin, the sso-only admin app (`ADMIN_CLIENT_ID`, redirect URIs from `BOOTSTRAP_ADMIN_REDIRECT_URIS`, default `http://localhost:3001/auth/callback`), its permission catalog (`platform:all`, `org.member:manage`, `org.role:assign`, `org.activity:view`), the role "Org Admin" (the three `org.*`) and the org "Monexa" (slug `monexa`) with the admin app enabled and the admin as a member. The password goes through the shared password policy and is never logged. A repeat run keeps existing rows (the admin user is made an active platform admin again) and prints no secret, so save it the first time. Rotate it from the admin UI if lost.
+`pnpm auth:bootstrap` is idempotent. It creates the platform admin, the sso-only admin app (`ADMIN_CLIENT_ID`, redirect URIs from `BOOTSTRAP_ADMIN_REDIRECT_URIS`, default `http://localhost:3001/auth/callback`), its permission catalog (`platform:all`, `org.member:manage`, `org.role:assign`, `org.activity:view`), the role "Org Admin" (the three `org.*`) and the org "Monexa" (slug `monexa`) with the admin app enabled and the admin as a member. The password goes through the shared password policy and is never logged. A repeat run keeps existing rows (the admin user is made an active platform admin again) and prints no secret, so save it the first time. The bootstrap admin gets no org role: `platform:all` satisfies every admin permission, so they can manage members and assign the "Org Admin" role in any org they switch into.
+
+**Lost admin app secret:** the admin UI cannot rotate it once it no longer has it (signing in to the admin UI needs that secret). Either re-run bootstrap with `BOOTSTRAP_ROTATE_ADMIN_SECRET=true`, which issues and prints a new secret, or have another platform admin who still holds a valid admin-app access token call `POST /api/admin/platform/apps/{id}/rotate-secret`. Then update the admin UI's `AUTH_CLIENT_SECRET`.
 
 ## Pointing an app template at it
 
@@ -44,14 +46,14 @@ As a platform admin, in the admin UI (or the API, see `openapi/openapi.json`):
 1. **Create the app:** client id, redirect URIs, grants, access TTL and refresh TTL. The client secret is returned once.
 2. **Fill its permission catalog:** strings like `invoice:read` or `org.member:manage`. Roles can only use catalog permissions, and `platform:*` is never granted through roles.
 3. **Create roles** for the app from catalog permissions.
-4. **Enable the app for an org**, add members to the org and assign them roles. Org admins (a role holding the `org.*` permissions) manage members, role assignments and the activity log of their own org only.
+4. **Enable the app for an org**, add members to the org and assign them roles. Org admins (a role holding the `org.*` permissions) manage members, role assignments and the activity log of their own org only. Platform admins can do the same in any org they switch into (`platform:all` satisfies every admin permission); unlike org admins they may also act on other platform admins and reset multi-org users' passwords. Nobody can change their own roles, membership or password through the admin API. The admin app itself cannot be deactivated.
 
 ## Org selection and switching
 
 A user may belong to several orgs; a token is always for one org.
-- **At sign-in:** the org is the `org_hint` authorize parameter if eligible, else the last one used, else the first eligible (by name). A hint the user can't use fails with `org_not_eligible`.
+- **At sign-in:** the org is the `org_hint` authorize parameter if eligible, else the last one used, else the first eligible (by name). A hint the user can't use is ignored: the user picks from the org picker, or goes straight in when only one org is eligible.
 - **Listing:** `GET /api/me/orgs` (bearer token) returns the orgs the user may enter for the calling app.
-- **Switching:** POST to `/oidc/token` with `grant_type=urn:monexa:params:oauth:grant-type:org-switch`, the current `refresh_token` and `org_id`. The response carries a new access and refresh token for that org; the old refresh token and its grant are revoked. The request authenticates as the same client.
+- **Switching:** POST to `/oidc/token` with `grant_type=urn:monexa:params:oauth:grant-type:org-switch`, the current `refresh_token` and `org_id`. The response carries a new access and refresh token for that org; every earlier token of the grant is revoked and the grant itself moves to the new org (so a central logout still ends it). The request authenticates as the same client. An org the user can't enter fails with `org_not_eligible`.
 
 ## Error reasons
 
@@ -65,36 +67,39 @@ Token endpoint failures carry exactly one of these in `error_description`:
 | `google_required`          | Reserved for Google-only apps. Google login is deferred, so it is not issued yet |
 | `org_not_eligible`         | The requested org is not available to this user for this app                     |
 
-`/account/password` is a standalone page (no app session needed) where a user replaces a temporary password; it enforces the shared policy and clears `must_change_password`.
+`/account/password` is a standalone page (no app session needed) where a user replaces a temporary password; it enforces the shared policy and clears `must_change_password`. Changing a password there, or at the forced change during sign-in, ends every other grant and session of the user (the sign-in in progress still completes).
 
 ## Sessions, revocation and keys
 
 - **Session cap:** a rotated refresh token gets a full app refresh TTL again. The absolute cap is the grant TTL, `max(14 days, refresh TTL)`.
 - **Refresh and org-switch** recompute permissions from the database.
-- **Deactivating a user or resetting a password** revokes all of the user's grants. **Membership or role changes** revoke the grants of that org. Access tokens are not revocable and live out their TTL (default 10 minutes).
+- **Deactivating a user, resetting a password (org or platform API) or changing your own password** revokes all of the user's grants. **Removing or deactivating a membership** revokes the grants of that org. **Role changes do not revoke:** they apply at the next refresh, which recomputes permissions. Access tokens are not revocable and live out their TTL (default 10 minutes).
+- **Central logout and account changes:** RP-initiated logout ends the grants of every app in the browser session. When a different account signs in on the same browser, the previous account's grants for every app in that session are revoked.
+- **Admin and `/api/me` tokens** must be access tokens (`typ` `at+jwt`); ID tokens are refused.
 - **The admin API** re-checks the user, platform-admin flag and membership on every request, so it reacts immediately.
 - **Secrets:** `OIDC_SIGNING_KEY` (RSA PEM, single line with `\n`), `CLIENT_SECRET_KEY` (base64 of 32 bytes; encrypts client secrets at rest) and `OIDC_COOKIE_KEYS` are secrets. The committed `.env.example` values are throwaway dev keys. There is **no key rotation yet**: changing `CLIENT_SECRET_KEY` makes every stored client secret unreadable, and changing `OIDC_SIGNING_KEY` invalidates issued tokens.
 - Never log passwords, hashes, tokens, client secrets or codes.
 
 ## Environment
 
-| Variable                                   | Default                               | Notes                                                             |
-| ------------------------------------------ | ------------------------------------- | ----------------------------------------------------------------- |
-| `PORT`                                     | `8080` (`.env.example`: `9000`)       |                                                                   |
-| `LOG_LEVEL`                                | `info`                                |                                                                   |
-| `DATABASE_URL`                             | required                              | On Vercel, use a pooler (PgBouncer transaction mode)              |
-| `DB_POOL_MAX`                              | `10`                                  | Use 1-3 on Vercel                                                 |
-| `OIDC_ISSUER`                              | required                              | Public base URL; clients use `<OIDC_ISSUER>/oidc` as their issuer |
-| `OIDC_SIGNING_KEY`                         | required                              | RSA private key PEM                                               |
-| `OIDC_COOKIE_KEYS`                         | required                              | Comma-separated; the first signs, all verify                      |
-| `CLIENT_SECRET_KEY`                        | required                              | base64 of 32 bytes                                                |
-| `ADMIN_CLIENT_ID`                          | `monexa-admin`                        | The admin app; its platform admins get `platform:all`             |
-| `LOCKOUT_MAX_FAILURES` / `LOCKOUT_MINUTES` | `5` / `15`                            | Password lockout                                                  |
-| `CORS_ORIGINS`                             | -                                     | Comma-separated. Empty means no CORS                              |
-| `RATE_LIMIT_MAX` / `LOGIN_RATE_LIMIT_MAX`  | `300` / `10`                          | Per minute. `/health` and `/ready` are never limited              |
-| `TRUST_PROXY`                              | `false`                               | `true` behind a proxy that sets `X-Forwarded-For`                 |
-| `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD`      | -                                     | Only for `pnpm auth:bootstrap`                                    |
-| `BOOTSTRAP_ADMIN_REDIRECT_URIS`            | `http://localhost:3001/auth/callback` | Comma-separated; only for `pnpm auth:bootstrap`                   |
+| Variable                                   | Default                               | Notes                                                                |
+| ------------------------------------------ | ------------------------------------- | -------------------------------------------------------------------- |
+| `PORT`                                     | `8080` (`.env.example`: `9000`)       |                                                                      |
+| `LOG_LEVEL`                                | `info`                                |                                                                      |
+| `DATABASE_URL`                             | required                              | On Vercel, use a pooler (PgBouncer transaction mode)                 |
+| `DB_POOL_MAX`                              | `10`                                  | Use 1-3 on Vercel                                                    |
+| `OIDC_ISSUER`                              | required                              | Public base URL; clients use `<OIDC_ISSUER>/oidc` as their issuer    |
+| `OIDC_SIGNING_KEY`                         | required                              | RSA private key PEM                                                  |
+| `OIDC_COOKIE_KEYS`                         | required                              | Comma-separated; the first signs, all verify                         |
+| `CLIENT_SECRET_KEY`                        | required                              | base64 of 32 bytes                                                   |
+| `ADMIN_CLIENT_ID`                          | `monexa-admin`                        | The admin app; its platform admins get `platform:all`                |
+| `LOCKOUT_MAX_FAILURES` / `LOCKOUT_MINUTES` | `5` / `15`                            | Password lockout                                                     |
+| `CORS_ORIGINS`                             | -                                     | Comma-separated. Empty means no CORS                                 |
+| `RATE_LIMIT_MAX` / `LOGIN_RATE_LIMIT_MAX`  | `300` / `10`                          | Per minute. `/health` and `/ready` are never limited                 |
+| `TRUST_PROXY`                              | `false`                               | `true` behind a proxy that sets `X-Forwarded-For`                    |
+| `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD`      | -                                     | Only for `pnpm auth:bootstrap`                                       |
+| `BOOTSTRAP_ADMIN_REDIRECT_URIS`            | `http://localhost:3001/auth/callback` | Comma-separated; only for `pnpm auth:bootstrap`                      |
+| `BOOTSTRAP_ROTATE_ADMIN_SECRET`            | `false`                               | `true` issues a new admin app secret; only for `pnpm auth:bootstrap` |
 
 An empty value counts as unset. A bad env fails at boot, and the error names the keys but never their values.
 
