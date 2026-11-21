@@ -1,4 +1,6 @@
 import { AppError } from "@mono/server-kit";
+import * as logos from "../../branding/logo.repository.js";
+import { type LogoUpload, removeLogo, setLogo, toLogo } from "../../branding/logo.service.js";
 import type { Db } from "../../db/client.js";
 import type { OrganizationRow } from "../../db/schema/index.js";
 import { MESSAGES_AUTH } from "../../messages.js";
@@ -6,14 +8,20 @@ import { revokeGrants } from "../../oidc/revoke.js";
 import { type Actor, audit, iso, orConflict, type PageQuery } from "./common.js";
 import * as repo from "./orgs.repository.js";
 
-export const toOrg = (o: OrganizationRow) => ({
+export const toOrg = (o: OrganizationRow, logo: logos.LogoMeta | undefined) => ({
   id: o.id,
   slug: o.slug,
   name: o.name,
   isActive: o.isActive,
   createdAt: iso(o.createdAt),
   updatedAt: iso(o.updatedAt),
+  logo: toLogo(logo),
 });
+
+/** `toOrg` with the org's current logo state. */
+async function orgWithLogo(db: Db, o: OrganizationRow) {
+  return toOrg(o, (await logos.logoMetaByOrgIds(db, [o.id])).get(o.id));
+}
 
 async function requireOrg(db: Db, id: string) {
   const org = await repo.findOrg(db, id);
@@ -23,7 +31,16 @@ async function requireOrg(db: Db, id: string) {
 
 export async function listOrgs(db: Db, q: PageQuery & { q?: string }) {
   const { items, total } = await repo.listOrgs(db, q);
-  return { items: items.map(toOrg), page: q.page, pageSize: q.pageSize, total };
+  const metas = await logos.logoMetaByOrgIds(
+    db,
+    items.map((o) => o.id)
+  );
+  return {
+    items: items.map((o) => toOrg(o, metas.get(o.id))),
+    page: q.page,
+    pageSize: q.pageSize,
+    total,
+  };
 }
 
 export function createOrg(db: Db, actor: Actor, input: { slug: string; name: string }) {
@@ -37,7 +54,7 @@ export function createOrg(db: Db, actor: Actor, input: { slug: string; name: str
         orgId: org.id,
         metadata: { slug: org.slug, name: org.name },
       });
-      return toOrg(org);
+      return toOrg(org, undefined);
     })
   );
 }
@@ -59,7 +76,7 @@ export function updateOrg(
         orgId: id,
         metadata: { fields: Object.keys(input) },
       });
-      return toOrg(org);
+      return orgWithLogo(tx, org);
     })
   );
 }
@@ -74,7 +91,7 @@ export function setOrgActive(db: Db, actor: Actor, id: string, isActive: boolean
       targetId: id,
       orgId: id,
     });
-    return toOrg(org);
+    return orgWithLogo(tx, org);
   });
 }
 
@@ -111,4 +128,15 @@ export function disableOrgApp(db: Db, actor: Actor, orgId: string, appId: string
     });
     return { orgId, appId, enabled: false, revokedGrants };
   });
+}
+
+/** Any org's login logo, for platform admins (the Organizations page). */
+export async function setOrgLogo(db: Db, actor: Actor, id: string, file: LogoUpload | undefined) {
+  await requireOrg(db, id);
+  return setLogo(db, actor, id, file);
+}
+
+export async function removeOrgLogo(db: Db, actor: Actor, id: string) {
+  await requireOrg(db, id);
+  return removeLogo(db, actor, id);
 }

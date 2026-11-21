@@ -201,6 +201,25 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "logo": {
+                                "nullable": true,
+                                "type": "object",
+                                "properties": {
+                                  "etag": {
+                                    "type": "string"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  }
+                                },
+                                "required": [
+                                  "etag",
+                                  "updatedAt"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -209,7 +228,8 @@
                               "name",
                               "isActive",
                               "createdAt",
-                              "updatedAt"
+                              "updatedAt",
+                              "logo"
                             ],
                             "additionalProperties": false
                           }
@@ -337,6 +357,25 @@
                           "type": "string",
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "logo": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "etag": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "etag",
+                            "updatedAt"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -345,7 +384,8 @@
                         "name",
                         "isActive",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "logo"
                       ],
                       "additionalProperties": false
                     }
@@ -458,6 +498,25 @@
                           "type": "string",
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "logo": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "etag": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "etag",
+                            "updatedAt"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -466,7 +525,8 @@
                         "name",
                         "isActive",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "logo"
                       ],
                       "additionalProperties": false
                     }
@@ -557,6 +617,25 @@
                           "type": "string",
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "logo": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "etag": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "etag",
+                            "updatedAt"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -565,7 +644,8 @@
                         "name",
                         "isActive",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "logo"
                       ],
                       "additionalProperties": false
                     }
@@ -656,6 +736,25 @@
                           "type": "string",
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "logo": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "etag": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "etag",
+                            "updatedAt"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -664,7 +763,8 @@
                         "name",
                         "isActive",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "logo"
                       ],
                       "additionalProperties": false
                     }
@@ -863,6 +963,155 @@
                         "revokedGrants"
                       ],
                       "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "code",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/platform/orgs/{id}/logo": {
+      "put": {
+        "summary": "Upload or replace an org's login logo (PNG, JPEG or WebP, max 512 KB)",
+        "tags": [
+          "admin-platform"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "number"
+                    },
+                    "request_id": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "etag": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        }
+                      },
+                      "required": [
+                        "etag",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "code",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove an org's login logo",
+        "tags": [
+          "admin-platform"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "number"
+                    },
+                    "request_id": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        null
+                      ]
                     }
                   },
                   "required": [
@@ -5031,6 +5280,131 @@
                         "total"
                       ],
                       "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "code",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/org/logo": {
+      "put": {
+        "summary": "Upload or replace the org's login logo (PNG, JPEG or WebP, max 512 KB)",
+        "tags": [
+          "admin-org"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "number"
+                    },
+                    "request_id": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "etag": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        }
+                      },
+                      "required": [
+                        "etag",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "code",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove the org's login logo",
+        "tags": [
+          "admin-org"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "number"
+                    },
+                    "request_id": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        null
+                      ]
                     }
                   },
                   "required": [

@@ -3,6 +3,7 @@ import type { Db } from "../../db/client.js";
 import type { Env } from "../../env.js";
 import { registerAdminGuard } from "../guard.js";
 import { activityRoutes } from "./activity.routes.js";
+import { brandingRoutes } from "./branding.routes.js";
 import { memberRoutes } from "./members.routes.js";
 import { memberRoleRoutes } from "./roles.routes.js";
 
@@ -15,4 +16,5 @@ export async function orgAdminRoutes(app: FastifyInstance, deps: { db: Db; env: 
   await app.register(memberRoutes, deps);
   await app.register(memberRoleRoutes, deps);
   await app.register(activityRoutes, deps);
+  await app.register(brandingRoutes, deps);
 }

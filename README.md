@@ -48,7 +48,8 @@ As a platform admin, in the admin UI (or the API, see `openapi/openapi.json`):
 1. **Create the app:** client id, redirect URIs, grants, access TTL and refresh TTL. The client secret is returned once.
 2. **Fill its permission catalog:** strings like `invoice:read` or `org.member:manage`. Roles can only use catalog permissions, and `platform:*` is never granted through roles.
 3. **Create roles** for the app from catalog permissions.
-4. **Enable the app for an org**, add members to the org and assign them roles. Org admins (a role holding the `org.*` permissions) manage members, role assignments and the activity log of their own org only. Platform admins can do the same in any org they switch into (`platform:all` satisfies every admin permission); unlike org admins they may also act on other platform admins and reset multi-org users' passwords. Nobody can change their own roles, membership or password through the admin API. The admin app itself cannot be deactivated.
+4. **Brand the org (optional):** upload its login logo (PNG, JPEG or WebP, ≤ 512 KB) on the Organizations page, or let its org admins do it (`org.branding:manage`, part of "Org Admin"). Apps that set `AUTH_ORG_HINT` to the org's slug show it on the login page. After upgrading, re-run `pnpm auth:bootstrap` once so existing installs get the new permission.
+5. **Enable the app for an org**, add members to the org and assign them roles. Org admins (a role holding the `org.*` permissions) manage members, role assignments and the activity log of their own org only. Platform admins can do the same in any org they switch into (`platform:all` satisfies every admin permission); unlike org admins they may also act on other platform admins and reset multi-org users' passwords. Nobody can change their own roles, membership or password through the admin API. The admin app itself cannot be deactivated.
 
 ## Org selection and switching
 
