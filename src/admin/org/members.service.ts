@@ -26,6 +26,17 @@ export async function requireMember(db: Db, orgId: string, userId: string) {
   return member;
 }
 
+/**
+ * For changes that cut access or alter privileges: an admin never targets themselves (no
+ * self-escalation, no self-lockout) and an org admin never touches a platform admin.
+ */
+export async function requireManageable(db: Db, actor: Actor, orgId: string, userId: string) {
+  await requireMember(db, orgId, userId);
+  if (actor.userId === userId) throw new AppError(422, MESSAGES_AUTH.selfActionNotAllowed);
+  const user = await repo.findUser(db, userId);
+  if (user?.isPlatformAdmin) throw new AppError(403, MESSAGES_AUTH.platformAdminProtected);
+}
+
 /** Member as the API shows it after a change, re-read inside the transaction. */
 export async function memberView(db: Db, orgId: string, userId: string): Promise<Member> {
   const [member] = await withRoles(db, orgId, [await requireMember(db, orgId, userId)]);
@@ -88,7 +99,7 @@ export function addExistingMember(db: Db, actor: Actor, orgId: string, email: st
 
 export function removeMember(db: Db, actor: Actor, orgId: string, userId: string) {
   return db.transaction(async (tx) => {
-    await requireMember(tx, orgId, userId);
+    await requireManageable(tx, actor, orgId, userId);
     await repo.deleteMemberRoles(tx, orgId, userId);
     await repo.deleteMembership(tx, orgId, userId);
     await revokeGrants(tx, { userId, orgId });
@@ -110,7 +121,8 @@ export function setMemberActive(
   isActive: boolean
 ) {
   return db.transaction(async (tx) => {
-    await requireMember(tx, orgId, userId);
+    if (isActive) await requireMember(tx, orgId, userId);
+    else await requireManageable(tx, actor, orgId, userId);
     await repo.setMembershipActive(tx, orgId, userId, isActive);
     if (!isActive) await revokeGrants(tx, { userId, orgId });
     await audit(tx, actor, {

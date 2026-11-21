@@ -271,3 +271,47 @@ describe("member roles", () => {
     expect((await h.call("GET", "/members", undefined, onlyManage)).statusCode).toBe(200);
   });
 });
+
+describe("self and platform-admin protection", () => {
+  it("refuses an admin changing their own roles, membership or activation (422), changing nothing", async () => {
+    const role = await seedRole(h.db, h.adminApp.id, "self-escalate");
+    const before = (await allActivity(h.db)).length;
+    const calls = [
+      h.call("PUT", `/members/${h.admin.id}/roles`, { roleIds: [role.id] }),
+      h.call("POST", `/members/${h.admin.id}/deactivate`),
+      h.call("DELETE", `/members/${h.admin.id}`),
+    ];
+    for (const res of await Promise.all(calls)) {
+      expect(res.statusCode).toBe(422);
+      expect(res.json().message).toBe(MESSAGES_AUTH.selfActionNotAllowed);
+    }
+    expect(
+      await h.db.select().from(memberRoles).where(eq(memberRoles.userId, h.admin.id))
+    ).toHaveLength(0);
+    const [m] = await h.db.select().from(memberships).where(eq(memberships.userId, h.admin.id));
+    expect(m?.isActive).toBe(true);
+    expect((await allActivity(h.db)).length).toBe(before);
+  });
+
+  it("refuses remove, deactivate and role changes on a platform admin (403), keeping their grants", async () => {
+    const pa = await seedUser(h.db, { isPlatformAdmin: true });
+    await addMember(h.db, pa.id, h.orgA.id);
+    await refresh("pa", pa.id, h.orgA.id);
+    const role = await seedRole(h.db, h.adminApp.id, "pa-role");
+    const before = (await allActivity(h.db)).length;
+    const calls = [
+      h.call("DELETE", `/members/${pa.id}`),
+      h.call("POST", `/members/${pa.id}/deactivate`),
+      h.call("PUT", `/members/${pa.id}/roles`, { roleIds: [role.id] }),
+    ];
+    for (const res of await Promise.all(calls)) {
+      expect(res.statusCode).toBe(403);
+      expect(res.json().message).toBe(MESSAGES_AUTH.platformAdminProtected);
+    }
+    expect(await hasRefresh("pa")).toBe(true);
+    expect(await h.db.select().from(memberships).where(eq(memberships.userId, pa.id))).toHaveLength(
+      1
+    );
+    expect((await allActivity(h.db)).length).toBe(before);
+  });
+});

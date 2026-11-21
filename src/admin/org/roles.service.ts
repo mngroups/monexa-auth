@@ -3,7 +3,7 @@ import type { Db } from "../../db/client.js";
 import { MESSAGES_AUTH } from "../../messages.js";
 import { type Actor, audit } from "../platform/common.js";
 import { deleteMemberRoles } from "./members.repository.js";
-import { memberView, requireMember } from "./members.service.js";
+import { memberView, requireManageable } from "./members.service.js";
 import * as repo from "./roles.repository.js";
 
 /** Replaces the member's roles in this org; every role's app must be enabled for the org. */
@@ -16,7 +16,7 @@ export function setMemberRoles(
 ) {
   const wanted = [...new Set(roleIds)];
   return db.transaction(async (tx) => {
-    await requireMember(tx, orgId, userId);
+    await requireManageable(tx, actor, orgId, userId);
     const found = await repo.rolesWithEnablement(tx, orgId, wanted);
     if (found.length !== wanted.length) throw new AppError(422, MESSAGES_AUTH.roleNotFound);
     if (found.some((r) => !r.enabled)) throw new AppError(422, MESSAGES_AUTH.roleAppNotEnabled);
