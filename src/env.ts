@@ -46,6 +46,11 @@ export const envSchema = z.object({
     .string()
     .refine((value) => Buffer.from(value, "base64").length === 32, "must be base64 of 32 bytes"),
   ADMIN_CLIENT_ID: z.string().min(1).default("monexa-admin"),
+  // The admin app's secret (printed by `pnpm auth:bootstrap`). Unset before bootstrap: the
+  // admin UI's /v1/auth/* routes are then not mounted.
+  ADMIN_CLIENT_SECRET: z.string().min(1).optional(),
+  ADMIN_REDIRECT_URIS: list(["http://localhost:3001/auth/callback"]),
+  ADMIN_POST_LOGOUT_REDIRECT_URI: z.url().optional(),
   LOCKOUT_MAX_FAILURES: int(5),
   LOCKOUT_MINUTES: int(15),
 

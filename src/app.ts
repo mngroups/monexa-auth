@@ -22,6 +22,7 @@ import type Provider from "oidc-provider";
 import { ACCOUNT_PASSWORD_PATH, accountRoutes } from "./account/routes.js";
 import { orgAdminRoutes } from "./admin/org/index.js";
 import { platformRoutes } from "./admin/platform/index.js";
+import { adminClientAuth } from "./admin-client/routes.js";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
 import { meRoutes } from "./me/routes.js";
@@ -134,6 +135,9 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   await app.register(accountRoutes, { db: opts.db, env });
   await app.register(platformRoutes, { db: opts.db, env });
   await app.register(orgAdminRoutes, { db: opts.db, env });
+  if (env.ADMIN_CLIENT_SECRET) {
+    await adminClientAuth(app, { env, clientSecret: env.ADMIN_CLIENT_SECRET });
+  }
 
   const { closeDb } = opts;
   if (closeDb) app.addHook("onClose", async () => closeDb());
