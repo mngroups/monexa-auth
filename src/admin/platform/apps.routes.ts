@@ -157,7 +157,9 @@ export async function appRoutes(app: FastifyInstance, { db, env }: { db: Db; env
         },
       },
       async (request, reply) => {
-        reply.ok(await service.setAppActive(db, actorOf(request), request.params.id, isActive));
+        reply.ok(
+          await service.setAppActive(db, env, actorOf(request), request.params.id, isActive)
+        );
       }
     );
   }

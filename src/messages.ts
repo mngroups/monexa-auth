@@ -26,6 +26,7 @@ export const MESSAGES_AUTH = {
   roleAppNotEnabled: "Aplikasi dari role ini belum diaktifkan untuk organisasi",
   permissionsNotInCatalog: "Sebagian permission tidak ada di katalog aplikasi",
   selfRevokeNotAllowed: "Admin platform tidak dapat mencabut aksesnya sendiri",
+  adminAppProtected: "Aplikasi admin Monexa tidak dapat dinonaktifkan",
   loginTitle: "Masuk ke Monexa",
   identifierLabel: "Email atau username",
   passwordLabel: "Password",

@@ -104,3 +104,30 @@ export function setUserActive(db: Db, actor: Actor, userId: string, isActive: bo
     return toUser(user);
   });
 }
+
+/**
+ * Any user, including multi-org users and other platform admins (org admins cannot reset those),
+ * never yourself. Ends every grant and session of the user.
+ */
+export async function resetUserPassword(
+  db: Db,
+  actor: Actor,
+  userId: string,
+  temporaryPassword: string
+) {
+  if (actor.userId === userId) throw new AppError(422, MESSAGES_AUTH.selfActionNotAllowed);
+  const problem = newPasswordError(temporaryPassword, temporaryPassword);
+  if (problem) throw new AppError(422, problem);
+  const passwordHash = await hashPassword(temporaryPassword);
+  return db.transaction(async (tx) => {
+    const user = await repo.setTemporaryPassword(tx, userId, passwordHash);
+    if (!user) throw new AppError(404, MESSAGES_AUTH.userNotFound);
+    await revokeGrants(tx, { userId });
+    await audit(tx, actor, {
+      action: "admin.user.password_reset",
+      targetType: "user",
+      targetId: userId,
+    });
+    return toUser(user);
+  });
+}

@@ -28,11 +28,13 @@ export async function requireMember(db: Db, orgId: string, userId: string) {
 
 /**
  * For changes that cut access or alter privileges: an admin never targets themselves (no
- * self-escalation, no self-lockout) and an org admin never touches a platform admin.
+ * self-escalation, no self-lockout) and an org admin never touches a platform admin (a
+ * platform admin may).
  */
 export async function requireManageable(db: Db, actor: Actor, orgId: string, userId: string) {
   await requireMember(db, orgId, userId);
   if (actor.userId === userId) throw new AppError(422, MESSAGES_AUTH.selfActionNotAllowed);
+  if (actor.isPlatformAdmin) return;
   const user = await repo.findUser(db, userId);
   if (user?.isPlatformAdmin) throw new AppError(403, MESSAGES_AUTH.platformAdminProtected);
 }
@@ -137,7 +139,8 @@ export function setMemberActive(
 
 /**
  * Only when the org is the user's whole footprint: a user who is also in another org, or who is a
- * platform admin, can be reset only by a platform admin. Ends every grant and session of the user.
+ * platform admin, can be reset only by a platform admin. Never your own password (that is
+ * `/account/password`). Ends every grant and session of the user.
  */
 export async function resetMemberPassword(
   db: Db,
@@ -151,8 +154,11 @@ export async function resetMemberPassword(
   const passwordHash = await hashPassword(temporaryPassword);
   return db.transaction(async (tx) => {
     await requireMember(tx, orgId, userId);
+    if (actor.userId === userId) throw new AppError(422, MESSAGES_AUTH.selfActionNotAllowed);
     const user = await repo.findUser(tx, userId);
-    if (!user || user.isPlatformAdmin || (await repo.belongsToOtherOrg(tx, orgId, userId))) {
+    const orgAdminMayReset =
+      user && !user.isPlatformAdmin && !(await repo.belongsToOtherOrg(tx, orgId, userId));
+    if (!actor.isPlatformAdmin && !orgAdminMayReset) {
       throw new AppError(403, MESSAGES_AUTH.resetNotAllowed);
     }
     await repo.resetPassword(tx, userId, passwordHash);

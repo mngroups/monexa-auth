@@ -30,14 +30,18 @@ export type Page<T> = { items: T[]; page: number; pageSize: number; total: numbe
 export const isoDate = z.iso.datetime();
 export const iso = (d: Date): string => d.toISOString();
 
-/** The caller of a mutation, as the audit row needs it. */
-export type Actor = { userId: string; ip?: string; userAgent?: string };
+/**
+ * The caller of a mutation, as the audit row needs it. `isPlatformAdmin` (live, from the guard)
+ * lifts the org-admin-only protections; self-action refusals apply to everyone.
+ */
+export type Actor = { userId: string; isPlatformAdmin?: boolean; ip?: string; userAgent?: string };
 
 export function actorOf(request: FastifyRequest): Actor {
   const admin = request.admin;
   if (!admin) throw new AppError(401, "unauthenticated");
   return {
     userId: admin.userId,
+    isPlatformAdmin: admin.isPlatformAdmin,
     ip: request.ip,
     userAgent: request.headers["user-agent"],
   };

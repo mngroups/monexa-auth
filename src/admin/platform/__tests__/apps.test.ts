@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { seedApp, seedRole } from "../../../__tests__/fixtures.js";
 import { apps, rolePermissions } from "../../../db/schema/index.js";
+import { MESSAGES_AUTH } from "../../../messages.js";
 import { decryptSecret } from "../../../oidc/secrets.js";
 import {
   type Admin,
@@ -101,6 +102,17 @@ describe("apps", () => {
         (await activityOf(h.db, action)).filter((r) => r.targetId === created.id)
       ).toHaveLength(1);
     }
+  });
+
+  it("refuses to deactivate the admin app itself (422), changing nothing", async () => {
+    const before = (await allActivity(h.db)).length;
+    const res = await h.call("POST", `/apps/${h.adminApp.id}/deactivate`);
+    expect(res.statusCode).toBe(422);
+    expect(res.json().message).toBe(MESSAGES_AUTH.adminAppProtected);
+    const [row] = await h.db.select().from(apps).where(eq(apps.id, h.adminApp.id));
+    expect(row?.isActive).toBe(true);
+    expect((await allActivity(h.db)).length).toBe(before);
+    expect((await h.call("POST", `/apps/${h.adminApp.id}/activate`)).statusCode).toBe(200);
   });
 
   it("answers 422 for invalid input, 409 for a taken client id, 404 for unknown apps; no activity on failure", async () => {

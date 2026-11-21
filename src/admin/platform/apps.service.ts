@@ -80,8 +80,15 @@ export function updateApp(db: Db, actor: Actor, id: string, input: Partial<AppIn
   });
 }
 
-export function setAppActive(db: Db, actor: Actor, id: string, isActive: boolean) {
+/** The admin app (`ADMIN_CLIENT_ID`) is never deactivated: nobody could sign in to undo it. */
+export function setAppActive(db: Db, env: Env, actor: Actor, id: string, isActive: boolean) {
   return db.transaction(async (tx) => {
+    if (!isActive) {
+      const current = await repo.findApp(tx, id);
+      if (current?.clientId === env.ADMIN_CLIENT_ID) {
+        throw new AppError(422, MESSAGES_AUTH.adminAppProtected);
+      }
+    }
     const app = await repo.updateApp(tx, id, { isActive });
     if (!app) throw new AppError(404, MESSAGES_AUTH.appNotFound);
     await audit(tx, actor, {

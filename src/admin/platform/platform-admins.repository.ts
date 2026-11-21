@@ -52,3 +52,19 @@ export async function setUserActive(db: Db, userId: string, isActive: boolean) {
     .returning();
   return row;
 }
+
+/** A temporary password: must be changed at next sign-in; clears any lockout. */
+export async function setTemporaryPassword(db: Db, userId: string, passwordHash: string) {
+  const [row] = await db
+    .update(users)
+    .set({
+      passwordHash,
+      mustChangePassword: true,
+      failedLogins: 0,
+      lockedUntil: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, userId))
+    .returning();
+  return row;
+}

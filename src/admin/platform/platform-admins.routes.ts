@@ -100,6 +100,30 @@ export async function platformAdminRoutes(app: FastifyInstance, { db, env }: { d
     }
   );
 
+  r.post(
+    `${base}/:id/reset-password`,
+    {
+      schema: {
+        ...routeMeta,
+        summary:
+          "Set a temporary password for any user (must change at next sign-in); ends their grants and sessions",
+        params: idParams,
+        body: z.object({ temporaryPassword: z.string().max(128) }),
+        response: { 200: envelopeSchema(userSchema) },
+      },
+    },
+    async (request, reply) => {
+      reply.ok(
+        await service.resetUserPassword(
+          db,
+          actorOf(request),
+          request.params.id,
+          request.body.temporaryPassword
+        )
+      );
+    }
+  );
+
   for (const [verb, isActive] of [
     ["activate", true],
     ["deactivate", false],
