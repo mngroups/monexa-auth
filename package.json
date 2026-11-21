@@ -52,6 +52,7 @@
     "@biomejs/biome": "2.6.3",
     "@electric-sql/pglite": "^0.5.17",
     "@types/node": "^24.19.2",
+    "@types/oidc-provider": "9.13.1",
     "@types/pg": "^8.23.1",
     "@vitest/coverage-v8": "^4.1.12",
     "drizzle-kit": "^0.31.11",

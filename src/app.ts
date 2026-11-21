@@ -18,8 +18,11 @@ import {
   serializerCompiler,
   validatorCompiler,
 } from "fastify-type-provider-zod";
+import type Provider from "oidc-provider";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
+import { mountProvider } from "./oidc/mount.js";
+import { createProvider } from "./oidc/provider.js";
 
 /** App copy that complements the kit's `MESSAGES`. */
 export const MESSAGES_APP = {
@@ -30,6 +33,8 @@ export type BuildAppOptions = {
   env: Env;
   db: Db;
   closeDb?: () => Promise<void>;
+  /** Defaults to `createProvider({ env, db })`. */
+  provider?: Provider;
 };
 
 const { version } = JSON.parse(
@@ -86,6 +91,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
 
   await app.register(health, { checks: { db: () => opts.db.execute(sql`select 1`) } });
   // #endregion
+
+  await mountProvider(app, opts.provider ?? createProvider({ env, db: opts.db }));
 
   const { closeDb } = opts;
   if (closeDb) app.addHook("onClose", async () => closeDb());

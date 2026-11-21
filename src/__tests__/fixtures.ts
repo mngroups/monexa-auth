@@ -11,6 +11,7 @@ import {
   roles,
   users,
 } from "../db/schema/index.js";
+import { encryptSecret } from "../oidc/secrets.js";
 
 let counter = 0;
 const next = () => `${++counter}`;
@@ -84,4 +85,16 @@ export async function getUser(db: Db, id: string) {
     .from(users)
     .where(and(eq(users.id, id)));
   return row as typeof users.$inferSelect;
+}
+
+/** An app with a real encrypted secret, as the provider's Client adapter reads it. */
+export async function seedClient(
+  db: Db,
+  key: Buffer,
+  v: Partial<typeof apps.$inferInsert> = {},
+  permissions: string[] = []
+) {
+  const secret = `secret-${next()}`;
+  const app = await seedApp(db, { clientSecretEnc: encryptSecret(secret, key), ...v }, permissions);
+  return { app, secret };
 }
