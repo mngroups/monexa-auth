@@ -12,6 +12,7 @@ import {
   resourceServerInfo,
   signingJwk,
 } from "./grant-access.js";
+import { ORG_SWITCH_GRANT, ORG_SWITCH_PARAMS, orgSwitchGrantHandler } from "./grants/org-switch.js";
 import { PASSWORD_GRANT_PARAMS, passwordGrantHandler } from "./grants/password.js";
 import { addRefreshExpiresIn } from "./token-response.js";
 
@@ -90,6 +91,11 @@ export function createProvider({ env, db }: { env: Env; db: Db }): Provider {
   Object.defineProperty(provider.Grant, "IN_PAYLOAD", { get: () => inPayload });
 
   provider.registerGrantType("password", passwordGrantHandler({ db, env }), PASSWORD_GRANT_PARAMS);
+  provider.registerGrantType(
+    ORG_SWITCH_GRANT,
+    orgSwitchGrantHandler({ db, env }),
+    ORG_SWITCH_PARAMS
+  );
   provider.use(addRefreshExpiresIn);
   return provider;
 }

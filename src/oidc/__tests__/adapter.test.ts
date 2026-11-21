@@ -5,6 +5,7 @@ import { seedClient, seedOrg, seedUser } from "../../__tests__/fixtures.js";
 import type { Db } from "../../db/client.js";
 import { oidcStore } from "../../db/schema/index.js";
 import { createAdapter } from "../adapter.js";
+import { ORG_SWITCH_GRANT } from "../grants/org-switch.js";
 
 const key = randomBytes(32);
 let db: Db;
@@ -122,7 +123,7 @@ describe("oidc adapter", () => {
       client_name: app.name,
       redirect_uris: ["https://app.example.com/cb"],
       post_logout_redirect_uris: ["https://app.example.com/"],
-      grant_types: ["password", "authorization_code", "refresh_token"],
+      grant_types: ["password", "authorization_code", "refresh_token", ORG_SWITCH_GRANT],
       response_types: ["code"],
       token_endpoint_auth_method: "client_secret_basic",
       app_id: app.id,
@@ -132,7 +133,7 @@ describe("oidc adapter", () => {
 
     const { app: passwordOnly } = await seedClient(db, key, { allowedGrants: ["password"] });
     expect(await adapterFor("Client").find(passwordOnly.clientId)).toMatchObject({
-      grant_types: ["password", "refresh_token"],
+      grant_types: ["password", "refresh_token", ORG_SWITCH_GRANT],
       response_types: [],
     });
 

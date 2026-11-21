@@ -2,6 +2,7 @@ import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { type Adapter, type AdapterPayload, errors } from "oidc-provider";
 import type { Db } from "../db/client.js";
 import { type AppRow, apps, oidcStore } from "../db/schema/index.js";
+import { ORG_SWITCH_GRANT } from "./grants/org-switch.js";
 import { decryptSecret } from "./secrets.js";
 
 export type AdapterOptions = { clientSecretKey: Buffer };
@@ -14,7 +15,8 @@ export function clientMetadata(app: AppRow, clientSecretKey: Buffer): AdapterPay
     client_name: app.name,
     redirect_uris: app.redirectUris,
     post_logout_redirect_uris: app.postLogoutRedirectUris,
-    grant_types: [...app.allowedGrants, "refresh_token"],
+    // Org switching rides on the refresh token every app has, so it is open to every app.
+    grant_types: [...app.allowedGrants, "refresh_token", ORG_SWITCH_GRANT],
     response_types: app.allowedGrants.includes("authorization_code") ? ["code"] : [],
     token_endpoint_auth_method: "client_secret_basic",
     app_id: app.id,

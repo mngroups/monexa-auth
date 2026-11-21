@@ -4,6 +4,9 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    // Each DB test file boots its own in-memory Postgres; parallel files make that slow.
+    hookTimeout: 60_000,
+    testTimeout: 30_000,
     include: ["{src,api,scripts}/**/__tests__/**/*.test.ts"],
     exclude: [...configDefaults.exclude, "dist/**"],
     coverage: {

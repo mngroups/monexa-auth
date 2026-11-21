@@ -21,6 +21,7 @@ import {
 import type Provider from "oidc-provider";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
+import { meRoutes } from "./me/routes.js";
 import { mountProvider, OIDC_PREFIX } from "./oidc/mount.js";
 import { createProvider } from "./oidc/provider.js";
 
@@ -63,7 +64,12 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   // #region handbook:app-wiring
   // Registered first so it sees every route (`pnpm openapi` writes the spec).
   await app.register(swagger, {
-    openapi: { info: { title: "Monexa Auth", version } },
+    openapi: {
+      info: { title: "Monexa Auth", version },
+      components: {
+        securitySchemes: { bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" } },
+      },
+    },
     transform: jsonSchemaTransform,
   });
   await app.register(requestId);
@@ -98,6 +104,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   await app.register(health, { checks: { db: () => opts.db.execute(sql`select 1`) } });
   // #endregion
 
+  await app.register(meRoutes, { db: opts.db, env });
   await mountProvider(app, opts.provider ?? createProvider({ env, db: opts.db }));
 
   const { closeDb } = opts;
