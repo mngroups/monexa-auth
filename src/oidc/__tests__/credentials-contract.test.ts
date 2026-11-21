@@ -185,6 +185,7 @@ describe("credentials contract (kit auth plugin → monexa-auth)", () => {
     expect(check.json().data).toEqual({
       user_id: user.id,
       permissions: ["example.item:edit", "example.item:view"],
+      org: { id: orgB.id, name: "Beta" },
     });
 
     const claims = decodeJwt(tokens.access_token);
