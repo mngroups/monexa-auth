@@ -11,7 +11,13 @@ import type { Env } from "../../env.js";
 import { MESSAGES_AUTH } from "../../messages.js";
 import { findUserByIdentifier } from "../../users/lookup.js";
 import { checkPasswordLogin, hashPassword } from "../../users/passwords.js";
-import { appClient, type GrantRefusal, grantTtl, type OrgGrant } from "../grant-access.js";
+import {
+  appClient,
+  type GrantRefusal,
+  grantTtl,
+  type OrgGrant,
+  revokeGrant,
+} from "../grant-access.js";
 import type { ViewName } from "./render.js";
 
 export type Interaction = Awaited<ReturnType<Provider["interactionDetails"]>>;
@@ -238,6 +244,12 @@ async function pickerPage(
   return render(ctx, "select-org", { orgs, checked, error }, error ? 400 : 200);
 }
 
+async function sessionGrantId(ctx: Ctx): Promise<string | undefined> {
+  const uid = ctx.interaction.session?.uid;
+  const session = uid ? await ctx.provider.Session.findByUid(uid) : undefined;
+  return session?.grantIdFor(ctx.client.clientId);
+}
+
 /** Resolves access for the org, creates the Grant (with `orgId`, `openid`) and finishes. */
 async function finish(ctx: Ctx, state: FlowState, orgId: string): Promise<Outcome> {
   const user = await activeUser(ctx.db, state.accountId);
@@ -256,6 +268,11 @@ async function finish(ctx: Ctx, state: FlowState, orgId: string): Promise<Outcom
     const orgs = await eligibleOrgs(ctx.db, user.id, appId, { adminClientId });
     return pickerPage(ctx, state, orgs, MESSAGES_AUTH.orgNotEligible);
   }
+
+  // The session remembers one grant per app; the new one replaces it. Revoke the old one
+  // now, or its refresh tokens would outlive the logout (which only revokes the session's).
+  const replaced = await sessionGrantId(ctx);
+  if (replaced) await revokeGrant(ctx.provider, replaced);
 
   const grant = new ctx.provider.Grant({
     accountId: user.id,

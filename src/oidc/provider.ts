@@ -18,6 +18,7 @@ import {
 } from "./grant-access.js";
 import { ORG_SWITCH_GRANT, ORG_SWITCH_PARAMS, orgSwitchGrantHandler } from "./grants/org-switch.js";
 import { PASSWORD_GRANT_PARAMS, passwordGrantHandler } from "./grants/password.js";
+import { allowFormRedirect } from "./interactions/csp.js";
 import { renderView } from "./interactions/render.js";
 import { INTERACTION_PREFIX } from "./interactions/routes.js";
 import { addRefreshExpiresIn } from "./token-response.js";
@@ -64,7 +65,21 @@ export function createProvider({ env, db }: { env: Env; db: Db }): Provider {
       rpInitiatedLogout: {
         enabled: true,
         // First-party apps only: the logout page submits itself, no confirmation.
-        logoutSource: (ctx, form) => html(ctx, renderView("logout", { form })),
+        logoutSource: (ctx, form) => {
+          // Our refresh tokens are not session-bound (`expiresWithSession` false), which the
+          // provider records as `persistsLogout` and then skips at logout. A Monexa logout
+          // ends every app's grant in the session, so clear it before the confirm POST.
+          const { session } = ctx.oidc;
+          for (const clientId of Object.keys(session?.authorizations ?? {})) {
+            const authorization = session?.authorizationFor(clientId);
+            if (authorization) authorization.persistsLogout = false;
+          }
+          // The confirm POST redirects to the validated post_logout_redirect_uri.
+          const target = ctx.oidc.params?.post_logout_redirect_uri as string | undefined;
+          const csp = allowFormRedirect(ctx.response.get("content-security-policy"), target);
+          if (csp) ctx.set("content-security-policy", csp);
+          html(ctx, renderView("logout", { form }));
+        },
         postLogoutSuccessSource: (ctx) => html(ctx, renderView("logged-out")),
       },
       resourceIndicators: {

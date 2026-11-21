@@ -10,6 +10,7 @@ import {
   type OrgGrant,
   resourceIndicator,
   resourceServerInfo,
+  revokeGrant,
 } from "../grant-access.js";
 
 export const ORG_SWITCH_GRANT = "urn:monexa:params:oauth:grant-type:org-switch";
@@ -101,15 +102,4 @@ export function orgSwitchGrantHandler({ db, env }: { db: Db; env: Env }) {
       token_type: at.tokenType,
     };
   };
-}
-
-async function revokeGrant(
-  provider: TokenEndpointGrantContext["oidc"]["provider"],
-  grantId: string
-) {
-  await Promise.all([
-    provider.AccessToken.revokeByGrantId(grantId),
-    provider.RefreshToken.revokeByGrantId(grantId),
-    provider.Grant.adapter.destroy(grantId),
-  ]);
 }

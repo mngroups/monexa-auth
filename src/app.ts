@@ -77,13 +77,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   await app.register(requestId);
   await app.register(envelope);
   await app.register(errorHandler);
-  await app.register(helmet, {
-    contentSecurityPolicy: {
-      // Browsers apply form-action to the redirects after a submit too: the sign-in form's
-      // redirect chain ends at the app's callback, the logout form's at its logged-out page.
-      directives: { formAction: null },
-    },
-  });
+  // The sign-in pages widen `form-action` per response (src/oidc/interactions/csp.ts).
+  await app.register(helmet);
   if (env.CORS_ORIGINS.length > 0) await app.register(cors, { origin: env.CORS_ORIGINS });
 
   // Must run before rate-limit's own onRoute hook reads `config.rateLimit`.

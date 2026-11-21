@@ -3,6 +3,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { errors } from "oidc-provider";
 import { z } from "zod";
 import { MESSAGES_AUTH } from "../../messages.js";
+import { allowFormRedirect } from "./csp.js";
 import { renderView } from "./render.js";
 import {
   type Interaction,
@@ -48,7 +49,9 @@ async function loadInteraction(
   return interaction;
 }
 
-function sendHtml(reply: FastifyReply, status: number, html: string) {
+function sendHtml(reply: FastifyReply, status: number, html: string, formTarget?: string) {
+  const csp = allowFormRedirect(reply.getHeader("content-security-policy") as string, formTarget);
+  if (csp) reply.header("content-security-policy", csp);
   return reply
     .code(status)
     .type("text/html; charset=utf-8")
@@ -60,10 +63,13 @@ async function respond(
   deps: InteractionDeps,
   request: FastifyRequest,
   reply: FastifyReply,
+  interaction: Interaction,
   outcome: Outcome
 ) {
   if (outcome.kind === "render") {
-    return sendHtml(reply, outcome.status, renderView(outcome.view, outcome.data));
+    // The forms' redirect chain ends at the app's (validated) redirect_uri.
+    const target = interaction.params.redirect_uri as string | undefined;
+    return sendHtml(reply, outcome.status, renderView(outcome.view, outcome.data), target);
   }
   reply.hijack();
   await deps.provider.interactionFinished(request.raw, reply.raw, outcome.result, {
@@ -107,7 +113,8 @@ export async function interactionRoutes(app: FastifyInstance, deps: InteractionD
   r.get(`${INTERACTION_PREFIX}/:uid`, { schema: { hide: true, params } }, (request, reply) =>
     guarded(reply, async () => {
       const interaction = await loadInteraction(deps, request, reply, request.params.uid);
-      await respond(deps, request, reply, await showInteraction(deps, interaction, audit(request)));
+      const outcome = await showInteraction(deps, interaction, audit(request));
+      await respond(deps, request, reply, interaction, outcome);
     })
   );
 
@@ -124,7 +131,7 @@ export async function interactionRoutes(app: FastifyInstance, deps: InteractionD
           request.body.uid ?? ""
         );
         const outcome = await submitInteraction(deps, interaction, request.body, audit(request));
-        await respond(deps, request, reply, outcome);
+        await respond(deps, request, reply, interaction, outcome);
       })
   );
 }

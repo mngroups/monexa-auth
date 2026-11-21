@@ -18,7 +18,13 @@ import {
 import { testEnv } from "../../__tests__/helpers.js";
 import { buildApp } from "../../app.js";
 import type { Db } from "../../db/client.js";
-import { activityLog, apps as appsTable, memberships, users } from "../../db/schema/index.js";
+import {
+  activityLog,
+  apps as appsTable,
+  memberships,
+  oidcStore,
+  users,
+} from "../../db/schema/index.js";
 import type { Env } from "../../env.js";
 import { MESSAGES_AUTH } from "../../messages.js";
 import { hashPassword } from "../../users/passwords.js";
@@ -177,6 +183,19 @@ async function exchange(kit: FastifyInstance, code: string, verifier: string) {
     method: "POST",
     url: "/v1/auth/callback",
     payload: { code, code_verifier: verifier, redirect_uri: FE_CALLBACK },
+  });
+}
+
+function formAction(res: Response): string | undefined {
+  const csp = res.headers.get("content-security-policy") ?? "";
+  return /(?:^|;)form-action ([^;]*)/.exec(csp)?.[1];
+}
+
+function refresh(kit: FastifyInstance, refreshToken: string) {
+  return kit.inject({
+    method: "POST",
+    url: "/v1/auth/refresh",
+    payload: { refresh_token: refreshToken },
   });
 }
 
@@ -637,8 +656,52 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     expect(await res.text()).toContain(MESSAGES.badRequest);
   });
 
-  it("does not restrict form-action, so the post-login redirect to the app is allowed", async () => {
-    const res = await fetch(`${origin}/assets/monexa-theme.css`);
-    expect(res.headers.get("content-security-policy")).not.toContain("form-action");
+  it("allows form submits only to itself plus the app's callback (login) or logout origin", async () => {
+    const { orgA, kit } = await scenario();
+    const loner = await seedUser(db, { passwordHash });
+    await addMember(db, loner.id, orgA.id);
+    const b = new Browser();
+    const { next, state } = await authorize(b, kit);
+    const page = await b.get(next);
+    expect(formAction(page)).toBe("'self' https://app.example.com");
+    const failed = await b.post(next, login(next, loner.email, "wrong password"));
+    expect(formAction(failed)).toBe("'self' https://app.example.com");
+    await codeFrom(b, await b.post(next, login(next, loner.email)), state);
+
+    const logout = await kit.inject({ method: "POST", url: "/v1/auth/logout", payload: {} });
+    const logoutPage = await b.get(logout.json().data.end_session_url);
+    expect(formAction(logoutPage)).toBe("'self' https://app.example.com");
+    // Everything else keeps helmet's default.
+    expect(formAction(await fetch(`${origin}/assets/monexa-theme.css`))).toBe("'self'");
+  });
+
+  it("revokes the grant a new interaction replaces, and logout ends the current one", async () => {
+    const first = await scenario();
+    const b = new Browser();
+    const one = await authorize(b, first.kit, { org_hint: first.orgA.id });
+    await b.get(one.next);
+    const done = await b.post(one.next, login(one.next, first.user.email));
+    const tokensA = (
+      await exchange(first.kit, await codeFrom(b, done, one.state), one.verifier)
+    ).json().data;
+
+    const two = await authorize(b, first.kit, { org_hint: first.orgB.id });
+    const tokensB = (
+      await exchange(first.kit, await codeFrom(b, await b.get(two.next), two.state), two.verifier)
+    ).json().data;
+    expect(decodeJwt(tokensB.access_token)).toMatchObject({ org_id: first.orgB.id });
+    expect((await refresh(first.kit, tokensA.refresh_token)).statusCode).toBe(401);
+    const rotated = await refresh(first.kit, tokensB.refresh_token);
+    expect(rotated.statusCode).toBe(200);
+
+    // Logout without handing the kit a refresh token: only end_session can revoke it.
+    const logout = await first.kit.inject({ method: "POST", url: "/v1/auth/logout", payload: {} });
+    const page = await (await b.get(logout.json().data.end_session_url)).text();
+    const action = /action="([^"]+)"/.exec(page)?.[1] as string;
+    const xsrf = /name="xsrf" value="([^"]+)"/.exec(page)?.[1] as string;
+    expect(location(await b.post(action, { xsrf, logout: "yes" }))).toBe(FE_LOGGED_OUT);
+    expect((await refresh(first.kit, rotated.json().data.refresh_token)).statusCode).toBe(401);
+    const current = await db.select().from(oidcStore).where(eq(oidcStore.userId, first.user.id));
+    expect(current.filter((r) => r.kind === "RefreshToken")).toEqual([]);
   });
 });

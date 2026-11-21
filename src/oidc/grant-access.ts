@@ -1,4 +1,5 @@
 import { createHash, createPrivateKey } from "node:crypto";
+import type Provider from "oidc-provider";
 import { type Client, errors, type Grant, type JWK, type ResourceServer } from "oidc-provider";
 import { resolveAccess } from "../access/permissions.js";
 import type { Db } from "../db/client.js";
@@ -78,4 +79,14 @@ export function resourceServerInfo(client: Client): ResourceServer {
     accessTokenTTL: appClient(client).access_ttl_seconds,
     jwt: { sign: { alg: "RS256" } },
   };
+}
+
+/** Ends a grant: its access tokens, refresh tokens and unused codes go with it. */
+export async function revokeGrant(provider: Provider, grantId: string): Promise<void> {
+  await Promise.all([
+    provider.AccessToken.revokeByGrantId(grantId),
+    provider.RefreshToken.revokeByGrantId(grantId),
+    provider.AuthorizationCode.revokeByGrantId(grantId),
+    provider.Grant.adapter.destroy(grantId),
+  ]);
 }
