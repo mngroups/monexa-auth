@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import type Provider from "oidc-provider";
 import type { Client, InteractionResults } from "oidc-provider";
 import { eligibleOrgs } from "../../access/eligibility.js";
+import { matchesOrgHint } from "../../access/org-hint.js";
 import { resolveAccess } from "../../access/permissions.js";
 import { logActivity } from "../../activity/log.js";
 import type { Db } from "../../db/client.js";
@@ -231,7 +232,8 @@ async function orgStep(ctx: Ctx, state: FlowState): Promise<Outcome> {
     adminClientId: ctx.env.ADMIN_CLIENT_ID,
   });
   const hint = ctx.interaction.params.org_hint;
-  const direct = orgs.find((o) => o.id === hint) ?? (orgs.length === 1 ? orgs[0] : undefined);
+  const direct =
+    orgs.find((o) => matchesOrgHint(o, hint)) ?? (orgs.length === 1 ? orgs[0] : undefined);
   if (orgs.length === 0 || direct) return finish(ctx, state, direct?.id ?? "");
   return pickerPage(ctx, state, orgs);
 }

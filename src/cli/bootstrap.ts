@@ -13,6 +13,7 @@ try {
   if (adminClientSecret) {
     console.log(`Admin app client id: ${params.adminClientId}`);
     console.log(`Admin app client secret (shown once, store it now): ${adminClientSecret}`);
+    console.log("Put it in this service's ADMIN_CLIENT_SECRET and restart it.");
   } else {
     console.log(
       "Admin app already exists; its client secret is unchanged (BOOTSTRAP_ROTATE_ADMIN_SECRET=true issues a new one)."

@@ -59,6 +59,7 @@ describe("bootstrap", () => {
     const catalog = await db.select().from(appPermissions);
     expect(catalog.map((c) => c.permission).sort()).toEqual([
       "org.activity:view",
+      "org.branding:manage",
       "org.member:manage",
       "org.role:assign",
       "platform:all",
@@ -68,6 +69,7 @@ describe("bootstrap", () => {
     const perms = await db.select().from(rolePermissions);
     expect(perms.map((p) => p.permission).sort()).toEqual([
       "org.activity:view",
+      "org.branding:manage",
       "org.member:manage",
       "org.role:assign",
     ]);

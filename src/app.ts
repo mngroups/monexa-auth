@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import {
@@ -22,6 +23,9 @@ import type Provider from "oidc-provider";
 import { ACCOUNT_PASSWORD_PATH, accountRoutes } from "./account/routes.js";
 import { orgAdminRoutes } from "./admin/org/index.js";
 import { platformRoutes } from "./admin/platform/index.js";
+import { adminClientAuth } from "./admin-client/routes.js";
+import { LOGO_MAX_BYTES } from "./branding/logo-file.js";
+import { brandingPublicRoutes } from "./branding/public.routes.js";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
 import { meRoutes } from "./me/routes.js";
@@ -126,7 +130,13 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   await app.register(health, { checks: { db: () => opts.db.execute(sql`select 1`) } });
   // #endregion
 
+  // Logo uploads only: one file, cut at the limit (flagged `truncated`) instead of throwing.
+  await app.register(multipart, {
+    limits: { fileSize: LOGO_MAX_BYTES, files: 1 },
+    throwFileSizeLimit: false,
+  });
   await app.register(meRoutes, { db: opts.db, env });
+  await app.register(brandingPublicRoutes, { db: opts.db });
   const provider = opts.provider ?? createProvider({ env, db: opts.db });
   await mountProvider(app, provider);
   await app.register(interactionRoutes, { db: opts.db, env, provider });
@@ -134,6 +144,9 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   await app.register(accountRoutes, { db: opts.db, env });
   await app.register(platformRoutes, { db: opts.db, env });
   await app.register(orgAdminRoutes, { db: opts.db, env });
+  if (env.ADMIN_CLIENT_SECRET) {
+    await adminClientAuth(app, { env, clientSecret: env.ADMIN_CLIENT_SECRET });
+  }
 
   const { closeDb } = opts;
   if (closeDb) app.addHook("onClose", async () => closeDb());

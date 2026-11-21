@@ -26,14 +26,15 @@ export async function resolveAccess(
   const first = orgs[0];
   if (!first) return { ok: false, reason: "no_app_access" };
 
-  let org: { id: string; name: string };
+  let picked: { id: string; name: string };
   if (p.orgId) {
     const chosen = orgs.find((o) => o.id === p.orgId);
     if (!chosen) return { ok: false, reason: "org_not_eligible" };
-    org = chosen;
+    picked = chosen;
   } else {
-    org = orgs.find((o) => o.id === p.lastOrgId) ?? first;
+    picked = orgs.find((o) => o.id === p.lastOrgId) ?? first;
   }
+  const org = { id: picked.id, name: picked.name };
 
   const rows = await db
     .selectDistinct({ permission: rolePermissions.permission })

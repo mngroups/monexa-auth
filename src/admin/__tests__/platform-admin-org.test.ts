@@ -103,6 +103,7 @@ describe("a bootstrapped platform admin in an org", () => {
     const member = await realToken(memberId, monexaId);
     expect(member.permissions).toEqual([
       "org.activity:view",
+      "org.branding:manage",
       "org.member:manage",
       "org.role:assign",
     ]);

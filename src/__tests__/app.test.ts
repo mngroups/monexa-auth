@@ -123,6 +123,7 @@ describe("buildApp", () => {
       memberManage: "org.member:manage",
       roleAssign: "org.role:assign",
       activityView: "org.activity:view",
+      brandingManage: "org.branding:manage",
     });
     expect(MESSAGES_AUTH).toMatchObject({
       noAppAccess: "Anda tidak memiliki akses ke aplikasi ini",

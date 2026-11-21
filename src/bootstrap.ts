@@ -15,7 +15,12 @@ import { encryptSecret } from "./oidc/secrets.js";
 import { newPasswordError } from "./users/password-policy.js";
 import { hashPassword } from "./users/passwords.js";
 
-const ORG_PERMISSIONS = ["org.member:manage", "org.role:assign", "org.activity:view"] as const;
+const ORG_PERMISSIONS = [
+  "org.member:manage",
+  "org.role:assign",
+  "org.activity:view",
+  "org.branding:manage",
+] as const;
 const CATALOG = ["platform:all", ...ORG_PERMISSIONS] as const;
 
 export type BootstrapParams = {

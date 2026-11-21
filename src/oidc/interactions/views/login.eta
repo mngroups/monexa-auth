@@ -1,4 +1,4 @@
-<% layout("./layout", { title: it.m.loginTitle, error: it.error }) %>
+<% layout("./layout", { title: it.m.loginTitle, error: it.error, brand: it.brand }) %>
 <form method="post" action="/interaction/<%= it.uid %>">
   <input type="hidden" name="uid" value="<%= it.uid %>">
   <input type="hidden" name="step" value="login">

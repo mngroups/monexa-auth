@@ -34,7 +34,7 @@ export async function eligibleOrgs(
   userId: string,
   appId: string,
   opts: AccessOptions
-): Promise<{ id: string; name: string }[]> {
+): Promise<{ id: string; name: string; slug: string }[]> {
   const asAdmin = await isPlatformAdminOnAdminApp(db, userId, appId, opts);
   const viaMembership = and(
     exists(
@@ -57,7 +57,7 @@ export async function eligibleOrgs(
     )
   );
   return db
-    .select({ id: organizations.id, name: organizations.name })
+    .select({ id: organizations.id, name: organizations.name, slug: organizations.slug })
     .from(organizations)
     .where(and(eq(organizations.isActive, true), asAdmin ? undefined : or(viaMembership)))
     .orderBy(asc(organizations.name));
