@@ -18,7 +18,7 @@ import {
 } from "./grant-access.js";
 import { ORG_SWITCH_GRANT, ORG_SWITCH_PARAMS, orgSwitchGrantHandler } from "./grants/org-switch.js";
 import { PASSWORD_GRANT_PARAMS, passwordGrantHandler } from "./grants/password.js";
-import { allowFormRedirect } from "./interactions/csp.js";
+import { allowPostLogoutRedirect } from "./interactions/csp.js";
 import { renderView } from "./interactions/render.js";
 import { INTERACTION_PREFIX } from "./interactions/routes.js";
 import { addRefreshExpiresIn } from "./token-response.js";
@@ -74,10 +74,6 @@ export function createProvider({ env, db }: { env: Env; db: Db }): Provider {
             const authorization = session?.authorizationFor(clientId);
             if (authorization) authorization.persistsLogout = false;
           }
-          // The confirm POST redirects to the validated post_logout_redirect_uri.
-          const target = ctx.oidc.params?.post_logout_redirect_uri as string | undefined;
-          const csp = allowFormRedirect(ctx.response.get("content-security-policy"), target);
-          if (csp) ctx.set("content-security-policy", csp);
           html(ctx, renderView("logout", { form }));
         },
         postLogoutSuccessSource: (ctx) => html(ctx, renderView("logged-out")),
@@ -181,5 +177,6 @@ export function createProvider({ env, db }: { env: Env; db: Db }): Provider {
     ORG_SWITCH_PARAMS
   );
   provider.use(addRefreshExpiresIn);
+  provider.use(allowPostLogoutRedirect);
   return provider;
 }

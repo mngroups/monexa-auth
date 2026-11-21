@@ -675,6 +675,20 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     expect(formAction(await fetch(`${origin}/assets/monexa-theme.css`))).toBe("'self'");
   });
 
+  it("returns a browser without a session to the app's logged-out page", async () => {
+    const { kit } = await scenario();
+    const b = new Browser();
+    const logout = await kit.inject({ method: "POST", url: "/v1/auth/logout", payload: {} });
+    const page = await b.get(logout.json().data.end_session_url);
+    expect(page.status).toBe(200);
+    expect(formAction(page)).toBe("'self' https://app.example.com");
+    const html = await page.text();
+    const action = /action="([^"]+)"/.exec(html)?.[1] as string;
+    const xsrf = /name="xsrf" value="([^"]+)"/.exec(html)?.[1] as string;
+    expect(html).toContain('name="logout" value="yes"');
+    expect(location(await b.post(action, { xsrf, logout: "yes" }))).toBe(FE_LOGGED_OUT);
+  });
+
   it("revokes the grant a new interaction replaces, and logout ends the current one", async () => {
     const first = await scenario();
     const b = new Browser();
