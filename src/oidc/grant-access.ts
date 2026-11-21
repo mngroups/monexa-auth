@@ -24,6 +24,13 @@ export type AppClient = Client & {
 
 export const appClient = (client: Client) => client as AppClient;
 
+const GRANT_MIN_TTL_SECONDS = 14 * 24 * 60 * 60;
+
+/** A Grant outlives any refresh token of its app; refresh rotation slides within it. */
+export function grantTtl(client: Client): number {
+  return Math.max(GRANT_MIN_TTL_SECONDS, appClient(client).refresh_ttl_seconds);
+}
+
 /** A Grant also carries the org it was issued for (persisted in its payload). */
 export type OrgGrant = Grant & { orgId: string };
 
@@ -52,6 +59,14 @@ export async function grantAccess(
   });
   if (!access.ok) throw grantRefused(access.reason);
   return access;
+}
+
+/**
+ * The resource indicator of an app's (only) resource server. oidc-provider requires an
+ * absolute URI, so it wraps the client id; the token `aud` stays the bare client id.
+ */
+export function resourceIndicator(client: Client): string {
+  return `urn:monexa:client:${client.clientId}`;
 }
 
 /** Every app is its own (only) resource server: JWT access tokens with `aud` = its client id. */

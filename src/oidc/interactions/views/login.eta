@@ -1,0 +1,10 @@
+<% layout("./layout", { title: it.m.loginTitle, error: it.error }) %>
+<form method="post" action="/interaction/<%= it.uid %>">
+  <input type="hidden" name="uid" value="<%= it.uid %>">
+  <input type="hidden" name="step" value="login">
+  <label for="identifier"><%= it.m.identifierLabel %></label>
+  <input id="identifier" name="identifier" type="text" autocomplete="username" required autofocus value="<%= it.identifier ?? "" %>">
+  <label for="password"><%= it.m.passwordLabel %></label>
+  <input id="password" name="password" type="password" autocomplete="current-password" required>
+  <button type="submit"><%= it.m.loginSubmit %></button>
+</form>

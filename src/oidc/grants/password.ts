@@ -12,6 +12,7 @@ import {
   type GrantRefusal,
   grantRefused,
   type OrgGrant,
+  resourceIndicator,
   resourceServerInfo,
 } from "../grant-access.js";
 
@@ -73,7 +74,7 @@ export function passwordGrantHandler({ db, env }: { db: Db; env: Env }) {
     const grantId = await grant.save();
     ctx.oidc.entity("Grant", grant);
 
-    const resource = client.clientId;
+    const resource = resourceIndicator(client);
     const at = new provider.AccessToken({
       accountId: user.id,
       client,

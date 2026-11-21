@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "tsx watch --env-file=.env src/server.ts",
-    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp -R src/db/migrations dist/db/migrations",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp -R src/db/migrations dist/db/migrations && cp -R src/oidc/interactions/views dist/oidc/interactions/views",
     "start": "node dist/server.js",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",

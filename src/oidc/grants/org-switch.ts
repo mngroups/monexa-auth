@@ -4,7 +4,13 @@ import { resolveAccess } from "../../access/permissions.js";
 import type { Db } from "../../db/client.js";
 import { users } from "../../db/schema/index.js";
 import type { Env } from "../../env.js";
-import { appClient, grantRefused, type OrgGrant, resourceServerInfo } from "../grant-access.js";
+import {
+  appClient,
+  grantRefused,
+  type OrgGrant,
+  resourceIndicator,
+  resourceServerInfo,
+} from "../grant-access.js";
 
 export const ORG_SWITCH_GRANT = "urn:monexa:params:oauth:grant-type:org-switch";
 export const ORG_SWITCH_PARAMS = ["refresh_token", "org_id"] as const;
@@ -61,7 +67,7 @@ export function orgSwitchGrantHandler({ db, env }: { db: Db; env: Env }) {
     const grantId = await grant.save();
     ctx.oidc.entity("Grant", grant);
 
-    const resource = client.clientId;
+    const resource = resourceIndicator(client);
     const at = new provider.AccessToken({
       accountId: userId,
       client,

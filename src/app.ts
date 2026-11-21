@@ -22,6 +22,8 @@ import type Provider from "oidc-provider";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
 import { meRoutes } from "./me/routes.js";
+import { interactionAssets } from "./oidc/interactions/assets.js";
+import { interactionRoutes } from "./oidc/interactions/routes.js";
 import { mountProvider, OIDC_PREFIX } from "./oidc/mount.js";
 import { createProvider } from "./oidc/provider.js";
 
@@ -75,7 +77,13 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   await app.register(requestId);
   await app.register(envelope);
   await app.register(errorHandler);
-  await app.register(helmet);
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      // Browsers apply form-action to the redirects after a submit too: the sign-in form's
+      // redirect chain ends at the app's callback, the logout form's at its logged-out page.
+      directives: { formAction: null },
+    },
+  });
   if (env.CORS_ORIGINS.length > 0) await app.register(cors, { origin: env.CORS_ORIGINS });
 
   // Must run before rate-limit's own onRoute hook reads `config.rateLimit`.
@@ -105,7 +113,10 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   // #endregion
 
   await app.register(meRoutes, { db: opts.db, env });
-  await mountProvider(app, opts.provider ?? createProvider({ env, db: opts.db }));
+  const provider = opts.provider ?? createProvider({ env, db: opts.db });
+  await mountProvider(app, provider);
+  await app.register(interactionRoutes, { db: opts.db, env, provider });
+  await app.register(interactionAssets);
 
   const { closeDb } = opts;
   if (closeDb) app.addHook("onClose", async () => closeDb());

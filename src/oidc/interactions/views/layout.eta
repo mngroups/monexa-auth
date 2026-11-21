@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title><%= it.title %> · Monexa</title>
+  <link rel="stylesheet" href="/assets/monexa-theme.css">
+<% if (it.autoSubmit) { %>
+  <script src="/assets/auto-submit.js" defer></script>
+<% } %>
+</head>
+<body>
+  <main class="card">
+    <p class="brand">Monexa</p>
+    <h1><%= it.title %></h1>
+<% if (it.error) { %>
+    <p class="alert" role="alert"><%= it.error %></p>
+<% } %>
+    <%~ it.body %>
+  </main>
+</body>
+</html>

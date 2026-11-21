@@ -1,0 +1,164 @@
+/* Monexa sign-in pages. @mono/ui is not a dependency of monexa-auth (its styles.css needs
+   Tailwind), so this file reuses its token names and default brand colors
+   (@mono/ui styles.css + theme-default.css, as monexa-app-template imports them). */
+:root {
+  --brand: #0097b2;
+  --brand-dark: #007a91;
+  --brand-soft: #e5f5f8;
+  --brand-light: #009cdf;
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --muted-foreground: #334155;
+  --destructive: red;
+  --accent: var(--brand-soft);
+  --accent-foreground: var(--brand-dark);
+  --ring: var(--brand);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --heading-weight: 700;
+  --heading-tracking: -0.01em;
+  --radius: 0.625rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brand-soft: #0a2a33;
+    --primary: var(--brand-light);
+    --background: #1e252e;
+    --foreground: #f1f5f9;
+    --card: #252d38;
+    --card-foreground: #f1f5f9;
+    --muted-foreground: #cbd5e1;
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  padding: 32px;
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
+}
+
+.brand {
+  margin: 0 0 8px;
+  color: var(--primary);
+  font-weight: var(--heading-weight);
+}
+
+h1 {
+  margin: 0 0 24px;
+  font-size: 1.5rem;
+  font-weight: var(--heading-weight);
+  letter-spacing: var(--heading-tracking);
+}
+
+form {
+  display: grid;
+  gap: 8px;
+}
+fieldset {
+  border: 0;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+label {
+  font-weight: 500;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 2px);
+}
+
+input:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  font-weight: 400;
+  cursor: pointer;
+}
+.option:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--accent);
+}
+.option input {
+  accent-color: var(--primary);
+}
+
+button {
+  margin-top: 8px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+}
+button:hover {
+  background: var(--brand-dark);
+}
+
+.alert {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  color: var(--destructive);
+  border: 1px solid currentColor;
+  border-radius: calc(var(--radius) - 2px);
+}
+.note {
+  margin: 0 0 16px;
+  color: var(--muted-foreground);
+}
+.detail {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  word-break: break-word;
+}

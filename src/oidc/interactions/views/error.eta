@@ -1,0 +1,5 @@
+<% layout("./layout", { title: it.m.errorTitle }) %>
+<p class="note"><%= it.message %></p>
+<% if (it.code) { %>
+<p class="detail"><code><%= it.code %></code><% if (it.description) { %>: <%= it.description %><% } %></p>
+<% } %>

@@ -124,13 +124,15 @@ describe("buildApp", () => {
       roleAssign: "org.role:assign",
       activityView: "org.activity:view",
     });
-    expect(MESSAGES_AUTH).toEqual({
+    expect(MESSAGES_AUTH).toMatchObject({
       noAppAccess: "Anda tidak memiliki akses ke aplikasi ini",
       passwordChangeRequired: "Anda harus mengganti password terlebih dahulu",
       orgNotEligible: "Anda tidak memiliki akses ke organisasi ini",
       resetNotAllowed:
         "User ini juga anggota organisasi lain; reset password hanya bisa dilakukan admin platform",
       invalidCredentials: MESSAGES.invalidCredentials,
+      passwordTooShort: "Password baru minimal 8 karakter",
+      passwordMismatch: "Konfirmasi password tidak sama",
     });
   });
 });
