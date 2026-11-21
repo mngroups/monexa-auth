@@ -27,8 +27,8 @@ importers:
         specifier: 0.2.0
         version: 0.2.0(zod@4.6.7)
       '@mono/server-kit':
-        specifier: file:../.local-packages/mono-server-kit-0.4.0.tgz
-        version: file:../.local-packages/mono-server-kit-0.4.0.tgz(@mono/auth@0.2.0(zod@4.6.7))(fastify-type-provider-zod@7.0.0(@fastify/swagger@9.9.5)(fastify@5.12.8)(openapi-types@12.1.3)(zod@4.6.7))(fastify@5.12.8)(zod@4.6.7)
+        specifier: ^0.4.0
+        version: 0.4.0(@mono/auth@0.2.0(zod@4.6.7))(fastify-type-provider-zod@7.0.0(@fastify/swagger@9.9.5)(fastify@5.12.8)(openapi-types@12.1.3)(zod@4.6.7))(fastify@5.12.8)(zod@4.6.7)
       '@node-rs/argon2':
         specifier: ^2.2.2
         version: 2.2.2
@@ -808,9 +808,8 @@ packages:
       react:
         optional: true
 
-  '@mono/server-kit@file:../.local-packages/mono-server-kit-0.4.0.tgz':
-    resolution: {integrity: sha512-lRORSQ/wxoCI17kruczOrVamm7wgb+A3KNOM1Aawp6pS+2BoYIoT9FcAIpDhnva0zPim/2Xk5RGJ+25Zt5+Phw==, tarball: file:../.local-packages/mono-server-kit-0.4.0.tgz}
-    version: 0.3.1
+  '@mono/server-kit@0.4.0':
+    resolution: {integrity: sha1-0TbDououO1QJiEtUwg8b/xSRnj4=, tarball: https://gitlab.com/api/v4/projects/89261774/packages/npm/@mono/server-kit/-/@mono/server-kit-0.4.0.tgz}
     engines: {node: '>=24 <25'}
     peerDependencies:
       '@mono/auth': ^0.2.0
@@ -2691,7 +2690,7 @@ snapshots:
       server-only: 0.0.1
       zod: 4.6.7
 
-  '@mono/server-kit@file:../.local-packages/mono-server-kit-0.4.0.tgz(@mono/auth@0.2.0(zod@4.6.7))(fastify-type-provider-zod@7.0.0(@fastify/swagger@9.9.5)(fastify@5.12.8)(openapi-types@12.1.3)(zod@4.6.7))(fastify@5.12.8)(zod@4.6.7)':
+  '@mono/server-kit@0.4.0(@mono/auth@0.2.0(zod@4.6.7))(fastify-type-provider-zod@7.0.0(@fastify/swagger@9.9.5)(fastify@5.12.8)(openapi-types@12.1.3)(zod@4.6.7))(fastify@5.12.8)(zod@4.6.7)':
     dependencies:
       '@aws-sdk/client-s3': 3.1175.0
       '@aws-sdk/s3-presigned-post': 3.1175.0
