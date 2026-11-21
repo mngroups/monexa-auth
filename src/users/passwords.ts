@@ -1,5 +1,5 @@
 import { hash, verify } from "@node-rs/argon2";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { type UserRow, users } from "../db/schema/index.js";
 import { findUserByIdentifier } from "./lookup.js";
@@ -31,6 +31,33 @@ async function equalizeTiming(plain: string): Promise<typeof INVALID> {
 const INVALID = { ok: false, reason: "invalid_credentials" } as const;
 
 /**
+ * Takes one attempt for the user, atomically: counts it as a failure up front and locks the
+ * account when it reaches `maxFailures`, but only while the account is not locked. Concurrent
+ * guesses therefore get at most `maxFailures` verifications before the lock. An expired lock
+ * starts a fresh failure window: this attempt counts as the first. False when locked.
+ */
+async function reserveAttempt(
+  db: Db,
+  userId: string,
+  opts: { maxFailures: number; lockMinutes: number },
+  now: Date
+): Promise<boolean> {
+  const at = sql`${now.toISOString()}::timestamptz`;
+  const lockUntil = sql`${new Date(now.getTime() + opts.lockMinutes * 60_000).toISOString()}::timestamptz`;
+  const expired = sql`(${users.lockedUntil} is not null and ${users.lockedUntil} <= ${at})`;
+  const count = sql`(case when ${expired} then 0 else ${users.failedLogins} end) + 1`;
+  const reserved = await db
+    .update(users)
+    .set({
+      failedLogins: count,
+      lockedUntil: sql`case when ${count} >= ${opts.maxFailures} then ${lockUntil} when ${expired} then null else ${users.lockedUntil} end`,
+    })
+    .where(and(eq(users.id, userId), or(isNull(users.lockedUntil), lte(users.lockedUntil, now))))
+    .returning({ id: users.id });
+  return reserved.length > 0;
+}
+
+/**
  * Verifies identifier + password with lockout. Unknown, inactive, locked and
  * passwordless users are all `invalid_credentials`; `password_change_required`
  * is returned only after the password itself verified.
@@ -44,23 +71,10 @@ export async function checkPasswordLogin(
   const now = opts.now ?? new Date();
   const user = await findUserByIdentifier(db, identifier);
   if (!user?.isActive || !user.passwordHash) return equalizeTiming(password);
-  const lockExpired = user.lockedUntil !== null && user.lockedUntil <= now;
-  if (user.lockedUntil && !lockExpired) return equalizeTiming(password);
+  if (!(await reserveAttempt(db, user.id, opts, now))) return equalizeTiming(password);
 
-  if (!(await verifyPassword(user.passwordHash, password))) {
-    const lockUntil = new Date(now.getTime() + opts.lockMinutes * 60_000).toISOString();
-    // An expired lock starts a fresh failure window: this failure counts as the first.
-    const base = lockExpired ? sql`0` : sql`${users.failedLogins}`;
-    const keepLock = lockExpired ? sql`null` : sql`${users.lockedUntil}`;
-    await db
-      .update(users)
-      .set({
-        failedLogins: sql`${base} + 1`,
-        lockedUntil: sql`case when ${base} + 1 >= ${opts.maxFailures} then ${lockUntil}::timestamptz else ${keepLock} end`,
-      })
-      .where(eq(users.id, user.id));
-    return INVALID;
-  }
+  // A wrong password stays counted by the reservation; the right one clears it.
+  if (!(await verifyPassword(user.passwordHash, password))) return INVALID;
 
   await db.update(users).set({ failedLogins: 0, lockedUntil: null }).where(eq(users.id, user.id));
   if (user.mustChangePassword) return { ok: false, reason: "password_change_required" };

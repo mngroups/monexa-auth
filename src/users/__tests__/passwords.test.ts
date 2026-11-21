@@ -138,6 +138,22 @@ describe("checkPasswordLogin", () => {
     expect(again.lockedUntil).not.toBeNull();
   });
 
+  it("counts at most maxFailures verifications of parallel wrong guesses, then the account is locked", async () => {
+    const hashed = await hashPassword("right-pw");
+    const u = await seedUser(db, { passwordHash: hashed });
+    verifySpy.mockClear();
+    const results = await Promise.all(
+      Array.from({ length: 12 }, () => checkPasswordLogin(db, u.email, "bad", opts))
+    );
+    expect(results.every((r) => !r.ok)).toBe(true);
+    const realVerifies = verifySpy.mock.calls.filter(([h]) => h === hashed).length;
+    expect(realVerifies).toBeLessThanOrEqual(opts.maxFailures);
+    const after = await getUser(db, u.id);
+    expect(after.failedLogins).toBe(opts.maxFailures);
+    expect(after.lockedUntil).not.toBeNull();
+    expect((await checkPasswordLogin(db, u.email, "right-pw", opts)).ok).toBe(false);
+  });
+
   it("runs a dummy verify for unknown, inactive, passwordless and locked users", async () => {
     const hashed = await hashPassword("pw-1234");
     const inactive = await seedUser(db, { passwordHash: hashed, isActive: false });

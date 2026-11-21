@@ -91,6 +91,22 @@ describe("resolveAccess", () => {
     });
   });
 
+  it("drops every platform permission from roles, platform.x:* included, even when catalogued", async () => {
+    const app = await seedApp(db, {}, ["a:read", "platform.billing:read", "platform:all"]);
+    const user = await seedUser(db);
+    const org = await seedOrg(db);
+    await addMember(db, user.id, org.id);
+    await enableApp(db, org.id, app.id);
+    const role = await seedRole(db, app.id, "sneaky", [
+      "a:read",
+      "platform.billing:read",
+      "platform:all",
+    ]);
+    await assignRole(db, user.id, org.id, role.id);
+    const res = await resolveAccess(db, { userId: user.id, appId: app.id, adminClientId });
+    expect(res).toMatchObject({ ok: true, permissions: ["a:read"] });
+  });
+
   it("adds platform:all for a platform admin on the admin app", async () => {
     const admin = await seedUser(db, { isPlatformAdmin: true });
     const org = await seedOrg(db, { name: "AAA admin target" });

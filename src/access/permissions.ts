@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { appPermissions, memberRoles, rolePermissions, roles } from "../db/schema/index.js";
+import { isPlatformPermission } from "../permissions.js";
 import { type AccessOptions, eligibleOrgs, isPlatformAdminOnAdminApp } from "./eligibility.js";
 
 export type AccessResult =
@@ -10,7 +11,7 @@ export type AccessResult =
 /**
  * Chooses the org (explicit, else last used, else first eligible) and computes the token
  * permissions: role permissions for this app and org, limited to the app's catalog.
- * `platform:*` from roles is dropped; `platform:all` is added only for platform admins on the admin app.
+ * `platform:*` / `platform.x:*` from roles are dropped; `platform:all` is added only for platform admins on the admin app.
  */
 export async function resolveAccess(
   db: Db,
@@ -48,7 +49,7 @@ export async function resolveAccess(
     )
     .where(and(eq(memberRoles.userId, p.userId), eq(memberRoles.orgId, org.id)));
 
-  const permissions = rows.map((r) => r.permission).filter((s) => !s.startsWith("platform:"));
+  const permissions = rows.map((r) => r.permission).filter((s) => !isPlatformPermission(s));
   if (await isPlatformAdminOnAdminApp(db, p.userId, p.appId, p)) permissions.push("platform:all");
   return { ok: true, org, permissions: permissions.sort() };
 }
