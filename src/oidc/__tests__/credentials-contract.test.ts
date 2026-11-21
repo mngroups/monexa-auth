@@ -254,6 +254,22 @@ describe("credentials contract (kit auth plugin → monexa-auth)", () => {
     expect(JSON.stringify(failures)).not.toContain("wrong password");
   });
 
+  it("logs a failed login for an unknown identifier without the identifier", async () => {
+    const { app, kit } = await scenario();
+    const typed = "my-Password-typed-as-username";
+    expect((await kitLogin(kit, typed)).statusCode).toBe(401);
+    const rows = (await db.select().from(activityLog)).filter(
+      (r) => r.action === "auth.login.failed" && r.actorUserId === null
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      targetType: "user",
+      targetId: "unknown",
+      metadata: { client_id: app.clientId, reason: "invalid_credentials" },
+    });
+    expect(JSON.stringify(rows)).not.toContain(typed);
+  });
+
   it("names the reason in error_description: no_app_access, org_not_eligible, password_change_required", async () => {
     const { app, secret, kit } = await scenario();
     const loner = await seedUser(db, { passwordHash });
@@ -304,6 +320,16 @@ describe("credentials contract (kit auth plugin → monexa-auth)", () => {
     expect(second.refresh_expires_in).toBe(3600);
     expect((await kitCheck(kit, second.access_token)).statusCode).toBe(200);
     expect((await kitRefresh(kit, first.refresh_token)).statusCode).toBe(401);
+  });
+
+  it("revokes the whole grant when a consumed refresh token is reused", async () => {
+    const { user, kit } = await scenario();
+    const a = (await kitLogin(kit, user.email)).json().data.refresh_token;
+    const b = (await kitRefresh(kit, a)).json().data.refresh_token;
+    expect((await kitRefresh(kit, a)).statusCode).toBe(401);
+    expect((await kitRefresh(kit, b)).statusCode).toBe(401);
+    const rows = await db.select().from(oidcStore).where(eq(oidcStore.userId, user.id));
+    expect(rows).toEqual([]);
   });
 
   it("lets only one of two concurrent refreshes with the same token succeed", async () => {

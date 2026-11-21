@@ -48,14 +48,12 @@ describe("buildApp", () => {
     expect(none.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
-  it("rate-limits the strict routes more tightly, with an Indonesian envelope", async () => {
-    const a = await app({ LOGIN_RATE_LIMIT_MAX: "2" });
-    a.post("/v1/auth/login", async (_req, reply) => reply.send({ ok: true }));
+  it("applies the global rate limit to anonymous routes", async () => {
+    const a = await app({ RATE_LIMIT_MAX: "2" });
     a.get("/other", async (_req, reply) => reply.send({ ok: true }));
-    const login = () => a.inject({ method: "POST", url: "/v1/auth/login" });
-    await login();
-    await login();
-    const third = await login();
+    await a.inject({ url: "/other" });
+    await a.inject({ url: "/other" });
+    const third = await a.inject({ url: "/other" });
     expect(third.statusCode).toBe(429);
     expect(third.json()).toMatchObject({
       success: false,
@@ -63,16 +61,20 @@ describe("buildApp", () => {
       message: MESSAGES_APP.rateLimited,
       data: null,
     });
-    // Other routes keep the global limit.
-    expect((await a.inject({ url: "/other" })).statusCode).toBe(200);
   });
 
-  it("applies the global rate limit to anonymous routes", async () => {
-    const a = await app({ RATE_LIMIT_MAX: "2" });
-    a.get("/other", async (_req, reply) => reply.send({ ok: true }));
-    await a.inject({ url: "/other" });
-    await a.inject({ url: "/other" });
-    expect((await a.inject({ url: "/other" })).statusCode).toBe(429);
+  it("never rate-limits the OIDC provider routes", async () => {
+    const a = await app({ RATE_LIMIT_MAX: "1" });
+    for (let i = 0; i < 3; i += 1) {
+      const res = await a.inject({
+        method: "POST",
+        url: "/oidc/token",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        payload: "grant_type=password",
+      });
+      expect(res.statusCode).not.toBe(429);
+      expect(res.json()).toMatchObject({ error: "invalid_request" });
+    }
   });
 
   it("never rate-limits health and readiness probes", async () => {

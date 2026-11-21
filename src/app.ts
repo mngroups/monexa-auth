@@ -21,7 +21,7 @@ import {
 import type Provider from "oidc-provider";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
-import { mountProvider } from "./oidc/mount.js";
+import { mountProvider, OIDC_PREFIX } from "./oidc/mount.js";
 import { createProvider } from "./oidc/provider.js";
 
 /** App copy that complements the kit's `MESSAGES`. */
@@ -41,7 +41,8 @@ const { version } = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8")
 ) as { version: string };
 
-const STRICT_RATE_LIMIT_ROUTES = new Set(["/v1/auth/login", "/v1/auth/callback"]);
+/** Routes with the tighter `LOGIN_RATE_LIMIT_MAX` (none yet; later routes add themselves). */
+const STRICT_RATE_LIMIT_ROUTES = new Set<string>();
 const PROBE_ROUTES = new Set(["/health", "/ready"]);
 
 /** Keyed by client IP (real only with TRUST_PROXY behind a proxy). */
@@ -81,6 +82,11 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     }
     // Probes must never be throttled: a 429 on /ready takes the instance out of rotation.
     if (PROBE_ROUTES.has(route.url)) route.config = { ...route.config, rateLimit: false };
+    // App backends call the provider from one server IP for all their users, so a per-IP
+    // limit would throttle everyone; password guessing is stopped by account lockout.
+    if (route.url.startsWith(`${OIDC_PREFIX}/`)) {
+      route.config = { ...route.config, rateLimit: false };
+    }
   });
   await app.register(rateLimit, {
     max: env.RATE_LIMIT_MAX,

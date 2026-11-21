@@ -40,7 +40,8 @@ export function passwordGrantHandler({ db, env }: { db: Db; env: Env }) {
         orgId: null,
         action: "auth.login.failed",
         targetType: "user",
-        targetId: userId ?? (username as string).trim(),
+        // Never the submitted identifier: users sometimes type their password into it.
+        targetId: userId ?? "unknown",
         ...audit,
         metadata: { client_id: client.clientId, reason },
       });
