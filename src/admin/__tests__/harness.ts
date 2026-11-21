@@ -23,7 +23,7 @@ export async function mintToken(
     org_id: claims.orgId ?? "00000000-0000-4000-8000-000000000001",
     permissions: claims.permissions ?? ["platform:all"],
   })
-    .setProtectedHeader({ alg: "RS256", kid: signingJwk(pem).kid })
+    .setProtectedHeader({ alg: "RS256", kid: signingJwk(pem).kid, typ: "at+jwt" })
     .setSubject(claims.sub)
     .setAudience(claims.aud ?? clientId)
     .setIssuer(`${env.OIDC_ISSUER}/oidc`)

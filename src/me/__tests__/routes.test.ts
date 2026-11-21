@@ -18,12 +18,12 @@ let app: FastifyInstance;
 
 async function mint(
   claims: Record<string, unknown>,
-  opts: { issuer?: string; pem?: string; expiresIn?: string } = {}
+  opts: { issuer?: string; pem?: string; expiresIn?: string; typ?: string } = {}
 ) {
   const pem = opts.pem ?? env.OIDC_SIGNING_KEY;
   const jwk = signingJwk(pem);
   return new SignJWT(claims)
-    .setProtectedHeader({ alg: "RS256", kid: jwk.kid })
+    .setProtectedHeader({ alg: "RS256", kid: jwk.kid, typ: opts.typ ?? "at+jwt" })
     .setIssuer(opts.issuer ?? `${env.OIDC_ISSUER}/oidc`)
     .setIssuedAt()
     .setExpirationTime(opts.expiresIn ?? "5m")
@@ -97,6 +97,15 @@ describe("GET /api/me/orgs", () => {
 });
 
 describe("verifyOwnToken", () => {
+  it("accepts only access tokens (typ at+jwt): an ID-token-typed JWT with every claim is 401", async () => {
+    const claims = { sub: "u1", client_id: "c1", org_id: "o1" };
+    for (const typ of ["JWT", "id_token+jwt"]) {
+      await expect(verifyOwnToken(env, await mint(claims, { typ }))).rejects.toMatchObject({
+        code: 401,
+      });
+    }
+  });
+
   it("returns sub, clientId and orgId", async () => {
     const token = await mint({ sub: "u1", client_id: "c1", org_id: "o1" });
     expect(await verifyOwnToken(env, token)).toEqual({

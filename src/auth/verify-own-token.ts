@@ -13,8 +13,8 @@ export type OwnTokenClaims = {
 
 /**
  * Verifies an access token this service issued, with the public half of its own signing
- * key (no JWKS fetch): RS256, `iss` and `exp` checked, any audience (each app is its own)
- * unless `audience` pins one.
+ * key (no JWKS fetch): RS256, `typ` `at+jwt` (an ID token is not an access token), `iss` and
+ * `exp` checked, any audience (each app is its own) unless `audience` pins one.
  */
 export async function verifyOwnToken(
   env: Env,
@@ -24,6 +24,7 @@ export async function verifyOwnToken(
   try {
     const { payload } = await jwtVerify(token, createPublicKey(env.OIDC_SIGNING_KEY), {
       algorithms: ["RS256"],
+      typ: "at+jwt",
       issuer: `${env.OIDC_ISSUER}/oidc`,
       audience: opts.audience,
     });
