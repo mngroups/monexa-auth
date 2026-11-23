@@ -1,10 +1,18 @@
-<% layout("./layout", { title: it.m.loginTitle, error: it.error, brand: it.brand }) %>
+<% layout("./layout", { title: it.m.loginTitle, subtitle: it.m.loginSubtitle, error: it.error, brand: it.brand, admin: it.admin }) %>
 <form method="post" action="/interaction/<%= it.uid %>">
   <input type="hidden" name="uid" value="<%= it.uid %>">
   <input type="hidden" name="step" value="login">
-  <label for="identifier"><%= it.m.identifierLabel %></label>
-  <input id="identifier" name="identifier" type="text" autocomplete="username" required autofocus value="<%= it.identifier ?? "" %>">
-  <label for="password"><%= it.m.passwordLabel %></label>
-  <input id="password" name="password" type="password" autocomplete="current-password" required>
+  <div class="field">
+    <label for="identifier"><%= it.m.identifierLabel %></label>
+    <input id="identifier" name="identifier" type="text" autocomplete="username" required autofocus value="<%= it.identifier ?? "" %>">
+  </div>
+  <div class="field">
+    <div class="field-row">
+      <label for="password"><%= it.m.passwordLabel %></label>
+      <a class="link-small" href="#lupa"><%= it.m.forgotPassword %></a>
+    </div>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+  </div>
   <button type="submit"><%= it.m.loginSubmit %></button>
 </form>
+<p class="footer" id="lupa"><%= it.m.forgotPasswordHint %></p>

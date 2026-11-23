@@ -5,23 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <title><%= it.title %> · Monexa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap">
   <link rel="stylesheet" href="/assets/monexa-theme.css">
 <% if (it.autoSubmit) { %>
   <script src="/assets/auto-submit.js" defer></script>
 <% } %>
 </head>
 <body>
-  <main class="card">
+  <div class="page">
+    <main class="card<%= it.wide ? " card-wide" : "" %>">
+      <span class="grab" aria-hidden="true"></span>
+      <div class="brand-block">
 <% if (it.brand) { %>
-    <img class="brand-logo" src="/branding/orgs/<%= encodeURIComponent(it.brand.slug) %>/logo" alt="<%= it.brand.name %>">
+        <img class="brand-logo" src="/branding/orgs/<%= encodeURIComponent(it.brand.slug) %>/logo" alt="<%= it.brand.name %>">
 <% } else { %>
-    <p class="brand">Monexa</p>
+        <div class="brand" role="img" aria-label="Monexa">
+          <span class="brand-mark"><svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M6 24V9l10 9 10-9v15" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+          <span class="brand-name">Monexa</span>
+        </div>
 <% } %>
-    <h1><%= it.title %></h1>
+<% if (it.admin) { %>
+        <span class="brand-caption"><%= it.m.adminConsole %></span>
+<% } %>
+      </div>
+      <div class="heading">
+        <h1><%= it.title %></h1>
+<% if (it.subtitle) { %>
+        <p class="subtitle"><%= it.subtitle %></p>
+<% } %>
+      </div>
 <% if (it.error) { %>
-    <p class="alert" role="alert"><%= it.error %></p>
+      <p class="alert" role="alert"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg><span><%= it.error %></span></p>
 <% } %>
-    <%~ it.body %>
-  </main>
+      <%~ it.body %>
+    </main>
+    <p class="caption"><%= it.m.poweredBy %></p>
+  </div>
 </body>
 </html>

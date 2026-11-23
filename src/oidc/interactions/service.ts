@@ -246,7 +246,12 @@ async function pickerPage(
 ) {
   const user = await activeUser(ctx.db, state.accountId);
   const checked = orgs.find((o) => o.id === user?.lastOrgId)?.id ?? orgs[0]?.id;
-  return render(ctx, "select-org", { orgs, checked, error }, error ? 400 : 200);
+  return render(
+    ctx,
+    "select-org",
+    { orgs, checked, lastOrgId: user?.lastOrgId, error },
+    error ? 400 : 200
+  );
 }
 
 /**

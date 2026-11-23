@@ -356,6 +356,41 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     await db.update(organizations).set({ isActive: true }).where(eq(organizations.id, orgA.id));
   });
 
+  it("puts the brand inside the card and shows Admin Console only for the admin client", async () => {
+    const { orgA, user, kit } = await scenario();
+    await upsertLogo(db, {
+      orgId: orgA.id,
+      content: PNG,
+      mime: "image/png",
+      etag: "e2",
+      updatedBy: user.id,
+    });
+    const page = async (k: FastifyInstance) => {
+      const b = new Browser();
+      const { next } = await authorize(b, k, { org_hint: orgA.slug });
+      return (await b.get(next)).text();
+    };
+    const html = await page(kit);
+    const card = html.slice(html.indexOf('<main class="card'), html.indexOf("</main>"));
+    expect(card).toContain(`<img class="brand-logo" src="/branding/orgs/${orgA.slug}/logo"`);
+    expect(html.indexOf("<main")).toBeLessThan(html.indexOf("brand-logo"));
+    expect(html).not.toContain("Admin Console");
+
+    const { secret } = await seedClient(
+      db,
+      key,
+      {
+        clientId: env.ADMIN_CLIENT_ID,
+        allowedGrants: ["authorization_code"],
+        redirectUris: [FE_CALLBACK],
+        postLogoutRedirectUris: [FE_LOGGED_OUT],
+      },
+      CATALOG
+    );
+    const adminHtml = await page(await kitApp(env.ADMIN_CLIENT_ID, secret));
+    expect(adminHtml).toContain("Admin Console");
+  });
+
   it("reuses the remembered grant for a slug org_hint naming the same org", async () => {
     const first = await scenario();
     const b = new Browser();

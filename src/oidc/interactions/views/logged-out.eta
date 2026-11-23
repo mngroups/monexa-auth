@@ -1,2 +1,2 @@
-<% layout("./layout", { title: it.m.loggedOutTitle, brand: it.brand }) %>
+<% layout("./layout", { title: it.m.loggedOutTitle, brand: it.brand, admin: it.admin }) %>
 <p class="note"><%= it.m.loggedOut %></p>

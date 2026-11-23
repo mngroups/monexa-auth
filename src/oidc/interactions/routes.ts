@@ -74,7 +74,11 @@ async function respond(
     return sendHtml(
       reply,
       outcome.status,
-      renderView(outcome.view, { ...outcome.data, brand }),
+      renderView(outcome.view, {
+        ...outcome.data,
+        brand,
+        admin: interaction.params.client_id === deps.env.ADMIN_CLIENT_ID,
+      }),
       target
     );
   }

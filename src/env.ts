@@ -49,6 +49,8 @@ export const envSchema = z.object({
   // The admin app's secret (printed by `pnpm auth:bootstrap`). Unset before bootstrap: the
   // admin UI's /v1/auth/* routes are then not mounted.
   ADMIN_CLIENT_SECRET: z.string().min(1).optional(),
+  // The org whose logo the admin UI's login shows (slug or id); the admin lands in it.
+  ADMIN_ORG_HINT: z.string().min(1).optional(),
   ADMIN_REDIRECT_URIS: list(["http://localhost:3001/auth/callback"]),
   ADMIN_POST_LOGOUT_REDIRECT_URI: z.url().optional(),
   LOCKOUT_MAX_FAILURES: int(5),

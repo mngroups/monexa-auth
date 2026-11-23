@@ -85,24 +85,25 @@ Token endpoint failures carry exactly one of these in `error_description`:
 
 ## Environment
 
-| Variable                                   | Default                               | Notes                                                                |
-| ------------------------------------------ | ------------------------------------- | -------------------------------------------------------------------- |
-| `PORT`                                     | `8080` (`.env.example`: `9000`)       |                                                                      |
-| `LOG_LEVEL`                                | `info`                                |                                                                      |
-| `DATABASE_URL`                             | required                              | On Vercel, use a pooler (PgBouncer transaction mode)                 |
-| `DB_POOL_MAX`                              | `10`                                  | Use 1-3 on Vercel                                                    |
-| `OIDC_ISSUER`                              | required                              | Public base URL; clients use `<OIDC_ISSUER>/oidc` as their issuer    |
-| `OIDC_SIGNING_KEY`                         | required                              | RSA private key PEM                                                  |
-| `OIDC_COOKIE_KEYS`                         | required                              | Comma-separated; the first signs, all verify                         |
-| `CLIENT_SECRET_KEY`                        | required                              | base64 of 32 bytes                                                   |
-| `ADMIN_CLIENT_ID`                          | `monexa-admin`                        | The admin app; its platform admins get `platform:all`                |
-| `LOCKOUT_MAX_FAILURES` / `LOCKOUT_MINUTES` | `5` / `15`                            | Password lockout                                                     |
-| `CORS_ORIGINS`                             | -                                     | Comma-separated. Empty means no CORS                                 |
-| `RATE_LIMIT_MAX` / `LOGIN_RATE_LIMIT_MAX`  | `300` / `10`                          | Per minute. `/health` and `/ready` are never limited                 |
-| `TRUST_PROXY`                              | `false`                               | `true` behind a proxy that sets `X-Forwarded-For`                    |
-| `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD`      | -                                     | Only for `pnpm auth:bootstrap`                                       |
-| `BOOTSTRAP_ADMIN_REDIRECT_URIS`            | `http://localhost:3001/auth/callback` | Comma-separated; only for `pnpm auth:bootstrap`                      |
-| `BOOTSTRAP_ROTATE_ADMIN_SECRET`            | `false`                               | `true` issues a new admin app secret; only for `pnpm auth:bootstrap` |
+| Variable                                   | Default                               | Notes                                                                                |
+| ------------------------------------------ | ------------------------------------- | ------------------------------------------------------------------------------------ |
+| `PORT`                                     | `8080` (`.env.example`: `9000`)       |                                                                                      |
+| `LOG_LEVEL`                                | `info`                                |                                                                                      |
+| `DATABASE_URL`                             | required                              | On Vercel, use a pooler (PgBouncer transaction mode)                                 |
+| `DB_POOL_MAX`                              | `10`                                  | Use 1-3 on Vercel                                                                    |
+| `OIDC_ISSUER`                              | required                              | Public base URL; clients use `<OIDC_ISSUER>/oidc` as their issuer                    |
+| `OIDC_SIGNING_KEY`                         | required                              | RSA private key PEM                                                                  |
+| `OIDC_COOKIE_KEYS`                         | required                              | Comma-separated; the first signs, all verify                                         |
+| `CLIENT_SECRET_KEY`                        | required                              | base64 of 32 bytes                                                                   |
+| `ADMIN_CLIENT_ID`                          | `monexa-admin`                        | The admin app; its platform admins get `platform:all`                                |
+| `ADMIN_ORG_HINT`                           | -                                     | Org slug or id: the admin UI's login shows that org's logo and the admin lands in it |
+| `LOCKOUT_MAX_FAILURES` / `LOCKOUT_MINUTES` | `5` / `15`                            | Password lockout                                                                     |
+| `CORS_ORIGINS`                             | -                                     | Comma-separated. Empty means no CORS                                                 |
+| `RATE_LIMIT_MAX` / `LOGIN_RATE_LIMIT_MAX`  | `300` / `10`                          | Per minute. `/health` and `/ready` are never limited                                 |
+| `TRUST_PROXY`                              | `false`                               | `true` behind a proxy that sets `X-Forwarded-For`                                    |
+| `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD`      | -                                     | Only for `pnpm auth:bootstrap`                                                       |
+| `BOOTSTRAP_ADMIN_REDIRECT_URIS`            | `http://localhost:3001/auth/callback` | Comma-separated; only for `pnpm auth:bootstrap`                                      |
+| `BOOTSTRAP_ROTATE_ADMIN_SECRET`            | `false`                               | `true` issues a new admin app secret; only for `pnpm auth:bootstrap`                 |
 
 An empty value counts as unset. A bad env fails at boot, and the error names the keys but never their values.
 

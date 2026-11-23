@@ -1,4 +1,4 @@
-<% layout("./layout", { title: it.m.errorTitle, brand: it.brand }) %>
+<% layout("./layout", { title: it.m.errorTitle, brand: it.brand, admin: it.admin }) %>
 <p class="note"><%= it.message %></p>
 <% if (it.code) { %>
 <p class="detail"><code><%= it.code %></code><% if (it.description) { %>: <%= it.description %><% } %></p>
