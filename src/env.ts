@@ -56,6 +56,10 @@ export const envSchema = z.object({
   LOCKOUT_MAX_FAILURES: int(5),
   LOCKOUT_MINUTES: int(15),
 
+  // Vercel Cron's bearer secret for GET /api/cron/cleanup. Unset: the route is not mounted
+  // (Docker runs `node dist/cli/cleanup.js` from cron instead).
+  CRON_SECRET: z.string().min(16).optional(),
+
   CORS_ORIGINS: list(),
   // Behind a proxy that sets X-Forwarded-For (load balancer, Vercel), so `request.ip`
   // is the real client for anonymous rate limiting.

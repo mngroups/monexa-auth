@@ -29,6 +29,7 @@ import { brandingPublicRoutes } from "./branding/public.routes.js";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
 import { meRoutes } from "./me/routes.js";
+import { cronRoutes } from "./oidc/cron.routes.js";
 import { interactionAssets } from "./oidc/interactions/assets.js";
 import { interactionRoutes } from "./oidc/interactions/routes.js";
 import { mountProvider, OIDC_PREFIX } from "./oidc/mount.js";
@@ -143,6 +144,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   await app.register(interactionAssets);
   await app.register(accountRoutes, { db: opts.db, env });
   await app.register(platformRoutes, { db: opts.db, env });
+  if (env.CRON_SECRET) await app.register(cronRoutes, { db: opts.db, secret: env.CRON_SECRET });
   await app.register(orgAdminRoutes, { db: opts.db, env });
   if (env.ADMIN_CLIENT_SECRET) {
     await adminClientAuth(app, { env, clientSecret: env.ADMIN_CLIENT_SECRET });
