@@ -60,3 +60,19 @@ export async function disableOrgApp(db: Db, orgId: string, appId: string): Promi
     .returning({ appId: orgApps.appId });
   return removed.length > 0;
 }
+
+/** Every app, with whether the org has it enabled. */
+export async function appsWithEnablement(db: Db, orgId: string) {
+  const rows = await db
+    .select({
+      appId: apps.id,
+      clientId: apps.clientId,
+      name: apps.name,
+      isActive: apps.isActive,
+      enabledAppId: orgApps.appId,
+    })
+    .from(apps)
+    .leftJoin(orgApps, and(eq(orgApps.appId, apps.id), eq(orgApps.orgId, orgId)))
+    .orderBy(asc(apps.name), asc(apps.id));
+  return rows.map(({ enabledAppId, ...a }) => ({ ...a, enabled: enabledAppId !== null }));
+}

@@ -95,6 +95,11 @@ export function setOrgActive(db: Db, actor: Actor, id: string, isActive: boolean
   });
 }
 
+export async function listOrgApps(db: Db, orgId: string) {
+  await requireOrg(db, orgId);
+  return repo.appsWithEnablement(db, orgId);
+}
+
 export function enableOrgApp(db: Db, actor: Actor, orgId: string, appId: string) {
   return db.transaction(async (tx) => {
     await requireOrg(tx, orgId);

@@ -115,3 +115,30 @@ describe("org apps", () => {
     expect((await h.call("PUT", `/orgs/${org.id}/apps/nope`)).statusCode).toBe(422);
   });
 });
+
+describe("GET /orgs/:id/apps", () => {
+  it("lists every app with whether the org has it", async () => {
+    const org = await seedOrg(h.db);
+    const app = await seedApp(h.db, { name: "Zzz Probe", isActive: false });
+    const find = async () => {
+      const res = await h.call("GET", `/orgs/${org.id}/apps`);
+      expect(res.statusCode).toBe(200);
+      return (res.json().data as { appId: string }[]).find((a) => a.appId === app.id);
+    };
+    expect(await find()).toEqual({
+      appId: app.id,
+      clientId: app.clientId,
+      name: "Zzz Probe",
+      isActive: false,
+      enabled: false,
+    });
+    await h.call("PUT", `/orgs/${org.id}/apps/${app.id}`);
+    expect(await find()).toMatchObject({ enabled: true });
+    await h.call("DELETE", `/orgs/${org.id}/apps/${app.id}`);
+    expect(await find()).toMatchObject({ enabled: false });
+  });
+
+  it("answers 404 for an unknown org", async () => {
+    expect((await h.call("GET", `/orgs/${MISSING_ID}/apps`)).statusCode).toBe(404);
+  });
+});

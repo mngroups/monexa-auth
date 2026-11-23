@@ -93,3 +93,33 @@ describe("org logo (org admin)", () => {
     expect(await logoOf(h.orgB.id)).toBeUndefined();
   });
 });
+
+describe("GET /org/branding", () => {
+  it("returns the token's org slug, name and logo state", async () => {
+    const token = await h.tokenFor(h.admin.id, h.orgA.id, BRANDING);
+    const get = () =>
+      h.app.inject({
+        method: "GET",
+        url: "/api/admin/org/branding",
+        headers: { authorization: `Bearer ${token}` },
+      });
+    await h.db.delete(orgLogos).where(eq(orgLogos.orgId, h.orgA.id));
+    const before = await get();
+    expect(before.statusCode).toBe(200);
+    expect(before.json().data).toEqual({ slug: h.orgA.slug, name: h.orgA.name, logo: null });
+    expect((await upload(token)).statusCode).toBe(200);
+    expect((await get()).json().data.logo).toEqual({
+      etag: expect.any(String),
+      updatedAt: expect.any(String),
+    });
+  });
+
+  it("needs org.branding:manage", async () => {
+    const res = await h.app.inject({
+      method: "GET",
+      url: "/api/admin/org/branding",
+      headers: { authorization: `Bearer ${h.token}` },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+});
