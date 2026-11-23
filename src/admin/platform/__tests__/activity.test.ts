@@ -1,5 +1,7 @@
+import { and, eq } from "drizzle-orm";
 import { seedOrg } from "../../../__tests__/fixtures.js";
 import { logActivity } from "../../../activity/log.js";
+import { activityLog } from "../../../db/schema/index.js";
 import { type Admin, bootAdmin } from "../../__tests__/harness.js";
 
 let h: Admin;
@@ -12,8 +14,11 @@ describe("activity", () => {
   it("lists the full log newest first, filtered by org, action and date, paginated", async () => {
     const org = await seedOrg(h.db);
     const other = await seedOrg(h.db);
-    const log = (orgId: string, action: string) =>
-      logActivity(h.db, {
+    // Rows logged back to back can share a millisecond, and the id tiebreak is a random
+    // uuid; give each row its own timestamp so "newest first" is deterministic.
+    let tick = Date.now() - 60_000;
+    const log = async (orgId: string, action: string) => {
+      await logActivity(h.db, {
         actorUserId: h.user.id,
         orgId,
         action,
@@ -21,6 +26,12 @@ describe("activity", () => {
         targetId: orgId,
         metadata: { n: action },
       });
+      tick += 1_000;
+      await h.db
+        .update(activityLog)
+        .set({ at: new Date(tick) })
+        .where(and(eq(activityLog.targetId, orgId), eq(activityLog.action, action)));
+    };
     await log(org.id, "admin.org.created");
     await log(org.id, "admin.org.updated");
     await log(other.id, "admin.org.created");
