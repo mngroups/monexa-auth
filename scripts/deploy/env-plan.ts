@@ -58,13 +58,16 @@ const typeOf = (vercelType: string): EnvType =>
  * Compares the project's production env with what it needs. A variable stored with the
  * wrong type is reported, never removed: only a person may delete env on Vercel.
  */
-export function planEnv(existing: { key: string; type: string }[], desired: Desired[]): Action[] {
-  const byKey = new Map(existing.map((e) => [e.key, e.type]));
+export function planEnv(
+  existing: { key: string; type: string; value?: string }[],
+  desired: Desired[]
+): Action[] {
+  const byKey = new Map(existing.map((e) => [e.key, e]));
   return desired.map((d): Action => {
-    const actual = byKey.get(d.key);
-    if (actual === undefined) return { kind: d.fromUser ? "askUser" : "add", desired: d };
-    if (typeOf(actual) !== d.type) return { kind: "wrongType", desired: d, actual };
-    if (d.value !== undefined) return { kind: "sync", desired: d };
+    const found = byKey.get(d.key);
+    if (found === undefined) return { kind: d.fromUser ? "askUser" : "add", desired: d };
+    if (typeOf(found.type) !== d.type) return { kind: "wrongType", desired: d, actual: found.type };
+    if (d.value !== undefined && found.value !== d.value) return { kind: "sync", desired: d };
     return { kind: "skip", desired: d };
   });
 }

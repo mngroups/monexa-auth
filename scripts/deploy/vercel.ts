@@ -62,6 +62,24 @@ export function createVercel(team: string, run: Runner = runVercelCli, opts = { 
         .map((e) => ({ key: e.key, type: e.type }));
     },
 
+    /**
+     * Current values of the named config variables only, each read on its own (the list
+     * endpoint returns ciphertext). Never asks for any other variable.
+     */
+    async envValues(project: string, keys: string[]): Promise<Record<string, string>> {
+      const { envs } = await api<{ envs: { id: string; key: string; target?: string[] }[] }>(
+        `/v10/projects/${project}/env`
+      );
+      const wanted = new Set(keys);
+      const out: Record<string, string> = {};
+      for (const e of envs) {
+        if (!wanted.has(e.key) || !e.target?.includes("production")) continue;
+        const { value } = await api<{ value?: string }>(`/v1/projects/${project}/env/${e.id}`);
+        if (value !== undefined) out[e.key] = value;
+      }
+      return out;
+    },
+
     /** Adds or replaces a production variable; the value travels on stdin only. */
     async envSet(
       project: string,
@@ -102,6 +120,13 @@ export function createVercel(team: string, run: Runner = runVercelCli, opts = { 
         }
         await new Promise((r) => setTimeout(r, opts.pollMs));
       }
+    },
+
+    async projectDomains(project: string): Promise<string[]> {
+      const { domains } = await api<{ domains: { name: string }[] }>(
+        `/v9/projects/${project}/domains`
+      );
+      return domains.map((d) => d.name);
     },
 
     domainConfig(domain: string) {

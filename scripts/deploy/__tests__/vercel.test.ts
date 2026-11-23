@@ -75,6 +75,29 @@ describe("vercel wrapper", () => {
     expect(calls[0].args).toEqual(["api", "/v10/projects/proj/env", "--raw", "--scope", "team-x"]);
   });
 
+  it("reads back only the config values it is asked for, one variable at a time", async () => {
+    const { run, calls } = fakeRunner({
+      "/v1/projects/proj/env/e1": JSON.stringify({ value: "https://a", decrypted: true }),
+      "/v10/projects/proj/env": JSON.stringify({
+        envs: [
+          { id: "e1", key: "OIDC_ISSUER", type: "plain", target: ["production"], value: "eyJ…" },
+          { id: "e2", key: "CLIENT_SECRET_KEY", type: "plain", target: ["production"] },
+        ],
+      }),
+    });
+    const values = await createVercel("t", run).envValues("proj", ["OIDC_ISSUER"]);
+    expect(values).toEqual({ OIDC_ISSUER: "https://a" });
+    const paths = calls.map((c) => c.args[1]);
+    expect(paths).toEqual(["/v10/projects/proj/env", "/v1/projects/proj/env/e1"]);
+  });
+
+  it("lists a project's domains by name", async () => {
+    const { run } = fakeRunner({
+      "/v9/projects/proj/domains": JSON.stringify({ domains: [{ name: "a.example.id" }] }),
+    });
+    expect(await createVercel("t", run).projectDomains("proj")).toEqual(["a.example.id"]);
+  });
+
   it("sends an API body on stdin", async () => {
     const { run, calls } = fakeRunner({ "/v13/deployments": JSON.stringify({ id: "dpl_1" }) });
     const id = await createVercel("t", run).deployFromGit("proj", "org/proj", "main");

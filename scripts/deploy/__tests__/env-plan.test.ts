@@ -55,6 +55,13 @@ describe("planEnv", () => {
     expect(planEnv(existing, desired).map((a) => a.kind)).toEqual(["sync", "skip", "skip"]);
   });
 
+  it("leaves config alone when its value already matches", () => {
+    const existing = [{ key: "OIDC_ISSUER", type: "encrypted", value: "https://auth.example.id" }];
+    expect(planEnv(existing, desired)[0].kind).toBe("skip");
+    const stale = [{ key: "OIDC_ISSUER", type: "encrypted", value: "https://old.example.id" }];
+    expect(planEnv(stale, desired)[0].kind).toBe("sync");
+  });
+
   it("flags a key stored with the wrong type instead of deleting it", () => {
     const existing = [{ key: "CLIENT_SECRET_KEY", type: "sensitive" }];
     expect(planEnv(existing, desired)[1]).toEqual({

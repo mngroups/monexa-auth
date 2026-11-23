@@ -9,6 +9,28 @@ Two Vercel projects, one Postgres database:
 
 > **The issuer is permanent.** `OIDC_ISSUER` ends up in every token and in every app's `AUTH_ISSUER`. Changing it later invalidates all sessions and needs every app reconfigured. Pick the domain once.
 
+## Fast path (scripts)
+
+Everything below is automated from this repo. The non-secret settings (team, region, domains, repos, org hint) live in `deploy/vercel.config.json`. Secrets are never printed or written to disk: steps that need production env run under `vercel env run` from an empty directory, and values reach Vercel on stdin.
+
+| Command                                  | What it does                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm deploy:setup [--dry-run]`          | Idempotent. It creates or repairs both projects (GitHub link, preset, Node 24) and creates the Neon database if missing. It syncs config env (`--no-sensitive`), generates the four keys **only if missing**, asks for `GITLAB_NPM_TOKEN` (hidden) when absent, attaches the domains, and lists missing DNS records. A variable stored with the wrong type is reported, never deleted. |
+| `pnpm deploy:release [auth\|admin\|all]` | Deploys `main` from GitHub, waits for READY, then runs the smoke checks: health, ready, discovery, the admin sign-in redirect chain, and cron without and with a token.                                                                                                                                                                                                                |
+| `pnpm deploy:bootstrap [--rotate]`       | First run only. It asks for the admin email and password (hidden) and runs the bootstrap against production. It checks the new admin app secret against the token endpoint, stores it as `ADMIN_CLIENT_SECRET`, and releases auth.                                                                                                                                                     |
+| `pnpm deploy:rotate admin-secret`        | New admin app secret: database, check, `vercel env update`, release.                                                                                                                                                                                                                                                                                                                   |
+| `pnpm deploy:rotate db`                  | After a Neon password reset: checks that the URLs connect, then releases auth.                                                                                                                                                                                                                                                                                                         |
+
+First deployment, in order:
+1. `vercel login`.
+2. Accept Neon's terms once: `vercel integration accept-terms neon`.
+3. `pnpm deploy:setup`, then add the DNS records it prints.
+4. `pnpm deploy:release auth`.
+5. `pnpm deploy:bootstrap`.
+6. `pnpm deploy:release admin`.
+
+The sections below describe the same steps by hand.
+
 ## 1. Database
 
 1. Create a Postgres database close to the Vercel region you will use (for example Neon or Supabase in Singapore, with the functions in `sin1`).

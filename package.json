@@ -27,7 +27,11 @@
     "auth:bootstrap": "tsx --env-file-if-exists=.env src/cli/bootstrap.ts",
     "auth:cleanup": "tsx --env-file-if-exists=.env src/cli/cleanup.ts",
     "registry:run": "node scripts/with-gitlab-registry-auth.mjs",
-    "deps:mono": "node scripts/with-gitlab-registry-auth.mjs update \"@mono/*\" --latest"
+    "deps:mono": "node scripts/with-gitlab-registry-auth.mjs update \"@mono/*\" --latest",
+    "deploy:setup": "tsx scripts/deploy/setup.ts",
+    "deploy:bootstrap": "tsx scripts/deploy/bootstrap.ts",
+    "deploy:release": "tsx scripts/deploy/release.ts",
+    "deploy:rotate": "tsx scripts/deploy/rotate.ts"
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,json,jsonc,md}": "biome check --write --no-errors-on-unmatched"
