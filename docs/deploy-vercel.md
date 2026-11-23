@@ -14,7 +14,7 @@ Two Vercel projects, one Postgres database:
 1. Create a Postgres database close to the Vercel region you will use (for example Neon or Supabase in Singapore, with the functions in `sin1`).
 2. Note two URLs:
    - **pooled** (PgBouncer, transaction mode) → `DATABASE_URL`;
-   - **direct** → `MIGRATION_DATABASE_URL`, used only by the build's migrations and by the bootstrap below.
+   - **direct** → used only by the build's migrations and by the bootstrap below. Neon's Vercel integration provides it as `DATABASE_URL_UNPOOLED`, which the build picks up on its own. With another provider, set it as `MIGRATION_DATABASE_URL`.
 
 ## 2. Secrets
 
@@ -47,7 +47,7 @@ Production env:
 | `GITLAB_PACKAGE_GROUP_ID`        | `148122988`                                                            |
 | `NODE_ENV`                       | `production`                                                           |
 | `DATABASE_URL`                   | pooled URL                                                             |
-| `MIGRATION_DATABASE_URL`         | direct URL                                                             |
+| `MIGRATION_DATABASE_URL`         | direct URL; not needed with Neon (`DATABASE_URL_UNPOOLED` is used)     |
 | `DB_POOL_MAX`                    | `2`                                                                    |
 | `OIDC_ISSUER`                    | `https://auth.mngroup.id`                                              |
 | `OIDC_SIGNING_KEY`               | from step 2                                                            |
@@ -114,6 +114,10 @@ Deploy and attach `auth-admin.mngroup.id`.
 Every app (for example Project Tracker) is created in the admin UI with its production callback (`https://<app>/auth/callback`) and post-logout URL (`https://<app>/login`). In the app's env:
 - `AUTH_ISSUER=https://auth.mngroup.id/oidc`;
 - `AUTH_PORTAL_URL=https://auth.mngroup.id` on the FE.
+
+## Rotating the database password
+
+Reset the role's password in Neon (from `vercel integration open neon`: Connect → Reset password). The integration updates `DATABASE_URL` and `DATABASE_URL_UNPOOLED` in Vercel, but a running deployment keeps the env it was built with, so **redeploy** right away. Until then, `/ready` answers 503. Don't copy the URLs into other variables by hand: a copy doesn't follow the next reset.
 
 ## Limits on Vercel
 

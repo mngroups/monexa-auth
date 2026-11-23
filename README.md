@@ -122,7 +122,7 @@ docker build --secret id=gitlab_npm_token,env=GITLAB_NPM_TOKEN --build-arg GITLA
 
 Run migrations as a release step before rollout: `node dist/db/migrate.js` in the image, or the **Migrate** GitHub workflow. Run `node dist/cli/bootstrap.js` in the image once against the new database (with the `BOOTSTRAP_*` env set; `pnpm auth:bootstrap` is the dev equivalent). Migrations never run at boot.
 
-A Vercel entry (`api/index.ts`, `vercel.json`) is kept from the template and works, but it is not the recommended home for an identity provider. If you use it, set `GITLAB_NPM_TOKEN` and `GITLAB_PACKAGE_GROUP_ID`, a pooled `DATABASE_URL` and `DB_POOL_MAX` of 1-3. Production builds migrate through `scripts/vercel-build.sh`; previews skip migrations unless `MIGRATE_ON_PREVIEW=true`, and `MIGRATION_DATABASE_URL` can hold a direct connection. Expired-row cleanup runs through Vercel Cron (`vercel.json`, daily) once `CRON_SECRET` is set. Step-by-step for this service and the admin UI: [docs/deploy-vercel.md](docs/deploy-vercel.md).
+A Vercel entry (`api/index.ts`, `vercel.json`) is kept from the template and works, but it is not the recommended home for an identity provider. If you use it, set `GITLAB_NPM_TOKEN` and `GITLAB_PACKAGE_GROUP_ID`, a pooled `DATABASE_URL` and `DB_POOL_MAX` of 1-3. Production builds migrate through `scripts/vercel-build.sh`; previews skip migrations unless `MIGRATE_ON_PREVIEW=true`, and migrations use a direct connection: `MIGRATION_DATABASE_URL`, else Neon's `DATABASE_URL_UNPOOLED`. Expired-row cleanup runs through Vercel Cron (`vercel.json`, daily) once `CRON_SECRET` is set. Step-by-step for this service and the admin UI: [docs/deploy-vercel.md](docs/deploy-vercel.md).
 
 ### Expired-row cleanup
 
