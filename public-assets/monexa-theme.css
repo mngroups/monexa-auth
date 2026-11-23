@@ -222,7 +222,8 @@ input[type="password"]:focus-visible {
   outline: none;
 }
 
-a {
+a,
+a:visited {
   color: var(--link);
 }
 .link-small {

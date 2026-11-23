@@ -245,7 +245,8 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     expect(loginHtml).toContain('name="identifier"');
     expect(loginHtml).toContain('name="password"');
     expect(loginHtml).toContain(`value="${uidOf(next)}"`);
-    expect(loginHtml).toContain("/assets/monexa-theme.css");
+    expect(loginHtml).toMatch(/\/assets\/monexa-theme\.css\?v=[0-9a-f]{12}"/);
+    expect(loginHtml).toContain("<h1>Masuk ke akun Anda</h1>");
 
     const picker = await b.post(next, login(next, user.email));
     expect(picker.status).toBe(200);
@@ -595,7 +596,7 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     const action = /action="([^"]+)"/.exec(html)?.[1] as string;
     const xsrf = /name="xsrf" value="([^"]+)"/.exec(html)?.[1] as string;
     expect(html).toContain('name="logout" value="yes"');
-    expect(html).toContain("/assets/auto-submit.js");
+    expect(html).toMatch(/\/assets\/auto-submit\.js\?v=[0-9a-f]{12}"/);
     const confirmed = await b.post(action, { xsrf, logout: "yes" });
     expect(location(confirmed)).toBe(FE_LOGGED_OUT);
 
@@ -723,6 +724,23 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     expect(res.status).toBe(400);
     expect(await res.text()).toContain(MESSAGES.badRequest);
     expect((await b.get(next)).status).toBe(400);
+  });
+
+  it("caches a versioned asset for a year and an unversioned or stale one briefly", async () => {
+    const { b, next } = await (async () => {
+      const { kit } = await scenario();
+      const browser = new Browser();
+      return { b: browser, next: (await authorize(browser, kit)).next };
+    })();
+    const html = await (await b.get(next)).text();
+    const href = /href="(\/assets\/monexa-theme\.css\?v=[0-9a-f]{12})"/.exec(html)?.[1] as string;
+    const versioned = await fetch(`${origin}${href}`);
+    expect(versioned.status).toBe(200);
+    expect(versioned.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+    const stale = await fetch(`${origin}/assets/monexa-theme.css?v=000000000000`);
+    expect(stale.headers.get("cache-control")).toBe("public, max-age=3600");
+    const bare = await fetch(`${origin}/assets/monexa-theme.css`);
+    expect(bare.headers.get("cache-control")).toBe("public, max-age=3600");
   });
 
   it("serves the theme CSS and renders provider errors as an Indonesian page", async () => {

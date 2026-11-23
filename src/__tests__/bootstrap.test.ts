@@ -22,6 +22,7 @@ const params = {
   adminEmail: "root@example.com",
   adminPassword: "correct-horse-battery",
   adminRedirectUris: ["http://localhost:3001/auth/callback"],
+  adminPostLogoutRedirectUris: ["http://localhost:3001/login"],
   adminClientId: "monexa-admin",
   secretKey,
 };
@@ -53,6 +54,7 @@ describe("bootstrap", () => {
     const [app] = await db.select().from(apps).where(eq(apps.clientId, "monexa-admin"));
     expect(app?.allowedGrants).toEqual(["authorization_code"]);
     expect(app?.redirectUris).toEqual(params.adminRedirectUris);
+    expect(app?.postLogoutRedirectUris).toEqual(["http://localhost:3001/login"]);
     expect(app?.clientSecretEnc).not.toBe("");
     expect(decryptSecret(app?.clientSecretEnc as string, secretKey)).toHaveLength(43);
 
@@ -132,6 +134,28 @@ describe("bootstrap with rotateAdminSecret (lost admin app secret)", () => {
   });
 });
 
+describe("bootstrap post-logout URIs on an existing app", () => {
+  it("adds the missing URIs exactly once and never removes any", async () => {
+    const { db: own, close: closeOwn } = await createTestDb();
+    try {
+      await bootstrap(own, { ...params, adminPostLogoutRedirectUris: [] });
+      const read = async () =>
+        (await own.select().from(apps).where(eq(apps.clientId, "monexa-admin")))[0]
+          ?.postLogoutRedirectUris;
+      expect(await read()).toEqual([]);
+      await own
+        .update(apps)
+        .set({ postLogoutRedirectUris: ["https://keep.example/out"] })
+        .where(eq(apps.clientId, "monexa-admin"));
+      await bootstrap(own, params);
+      await bootstrap(own, params);
+      expect(await read()).toEqual(["https://keep.example/out", "http://localhost:3001/login"]);
+    } finally {
+      await closeOwn();
+    }
+  });
+});
+
 describe("readBootstrapEnv", () => {
   const env = { ADMIN_CLIENT_ID: "monexa-admin", CLIENT_SECRET_KEY: secretKey.toString("base64") };
 
@@ -146,6 +170,17 @@ describe("readBootstrapEnv", () => {
     );
     expect(listed.adminRedirectUris).toEqual(["http://a/cb", "http://b/cb"]);
     expect(listed.secretKey.equals(secretKey)).toBe(true);
+  });
+
+  it("defaults the post-logout URI and splits a comma list", () => {
+    const base = { BOOTSTRAP_ADMIN_EMAIL: "a@b.co", BOOTSTRAP_ADMIN_PASSWORD: "long-enough-pw" };
+    expect(readBootstrapEnv(base, env).adminPostLogoutRedirectUris).toEqual([
+      "http://localhost:3001/login",
+    ]);
+    expect(
+      readBootstrapEnv({ ...base, BOOTSTRAP_ADMIN_POST_LOGOUT_REDIRECT_URIS: "http://a/x, ," }, env)
+        .adminPostLogoutRedirectUris
+    ).toEqual(["http://a/x"]);
   });
 
   it("rejects missing values and weak passwords without echoing the password", () => {

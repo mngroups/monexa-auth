@@ -79,6 +79,14 @@ describe("kit auth routes for the admin app", () => {
     expect(new URL(res.json().data.url).searchParams.get("org_hint")).toBe("monexa");
   });
 
+  it("returns the end_session_url with the default post-logout URI", async () => {
+    const res = await app.inject({ method: "POST", url: "/v1/auth/logout", payload: {} });
+    expect(res.statusCode).toBe(200);
+    const url = new URL(res.json().data.end_session_url);
+    expect(url.href.startsWith(`${env.OIDC_ISSUER}/oidc/session/end`)).toBe(true);
+    expect(url.searchParams.get("post_logout_redirect_uri")).toBe("http://localhost:3001/login");
+  });
+
   it("refuses a redirect_uri outside ADMIN_REDIRECT_URIS", async () => {
     expect((await authorizeUrl("https://evil.test/auth/callback")).statusCode).toBe(422);
   });

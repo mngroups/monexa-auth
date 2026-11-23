@@ -29,7 +29,14 @@ describe("loadEnv", () => {
       RATE_LIMIT_MAX: 300,
       LOGIN_RATE_LIMIT_MAX: 10,
       TRUST_PROXY: false,
+      ADMIN_POST_LOGOUT_REDIRECT_URI: "http://localhost:3001/login",
     });
+  });
+
+  it("falls back to the default post-logout URI when the value is empty", () => {
+    expect(
+      loadEnv({ ...minimal, ADMIN_POST_LOGOUT_REDIRECT_URI: "" }).ADMIN_POST_LOGOUT_REDIRECT_URI
+    ).toBe("http://localhost:3001/login");
   });
 
   it("trims list entries and drops empty ones", () => {

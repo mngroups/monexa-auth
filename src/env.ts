@@ -52,7 +52,7 @@ export const envSchema = z.object({
   // The org whose logo the admin UI's login shows (slug or id); the admin lands in it.
   ADMIN_ORG_HINT: z.string().min(1).optional(),
   ADMIN_REDIRECT_URIS: list(["http://localhost:3001/auth/callback"]),
-  ADMIN_POST_LOGOUT_REDIRECT_URI: z.url().optional(),
+  ADMIN_POST_LOGOUT_REDIRECT_URI: z.url().default("http://localhost:3001/login"),
   LOCKOUT_MAX_FAILURES: int(5),
   LOCKOUT_MINUTES: int(15),
 

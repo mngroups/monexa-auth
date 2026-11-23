@@ -52,6 +52,7 @@ beforeAll(async () => {
     adminEmail: "root@example.com",
     adminPassword: "correct-horse-battery",
     adminRedirectUris: ["http://localhost:3001/auth/callback"],
+    adminPostLogoutRedirectUris: ["http://localhost:3001/login"],
     adminClientId: env.ADMIN_CLIENT_ID,
     secretKey: Buffer.from(env.CLIENT_SECRET_KEY, "base64"),
   });

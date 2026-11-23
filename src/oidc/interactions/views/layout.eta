@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap">
-  <link rel="stylesheet" href="/assets/monexa-theme.css">
+  <link rel="stylesheet" href="<%= it.assets.theme %>">
 <% if (it.autoSubmit) { %>
-  <script src="/assets/auto-submit.js" defer></script>
+  <script src="<%= it.assets.autoSubmit %>" defer></script>
 <% } %>
 </head>
 <body>
