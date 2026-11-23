@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import * as service from "../../branding/logo.service.js";
+import { orgBranding } from "../../branding/org-branding.service.js";
 import { readLogoUpload } from "../../branding/upload.js";
 import type { Db } from "../../db/client.js";
 import type { Env } from "../../env.js";
@@ -16,6 +17,24 @@ export const logoSchema = z.object({ etag: z.string(), updatedAt: isoDate });
 export async function brandingRoutes(app: FastifyInstance, { db, env }: { db: Db; env: Env }) {
   app.addHook("onRequest", requireAdmin({ db, env }, PERMISSIONS.brandingManage));
   const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.get(
+    `${ORG_PREFIX}/branding`,
+    {
+      schema: {
+        ...routeMeta,
+        summary: "The org's slug, name and login-logo state",
+        response: {
+          200: envelopeSchema(
+            z.object({ slug: z.string(), name: z.string(), logo: logoSchema.nullable() })
+          ),
+        },
+      },
+    },
+    async (request, reply) => {
+      reply.ok(await orgBranding(db, orgOf(request)));
+    }
+  );
 
   r.put(
     `${ORG_PREFIX}/logo`,

@@ -38,6 +38,13 @@ const orgAppSchema = z.object({
   enabled: z.boolean(),
   revokedGrants: z.number().int(),
 });
+const orgAppListItemSchema = z.object({
+  appId: z.string(),
+  clientId: z.string(),
+  name: z.string(),
+  isActive: z.boolean(),
+  enabled: z.boolean(),
+});
 const orgAppParams = z.object({ id: z.uuid(), appId: z.uuid() });
 
 export async function orgRoutes(app: FastifyInstance, { db }: { db: Db }) {
@@ -111,6 +118,21 @@ export async function orgRoutes(app: FastifyInstance, { db }: { db: Db }) {
       }
     );
   }
+
+  r.get(
+    `${base}/:id/apps`,
+    {
+      schema: {
+        ...routeMeta,
+        summary: "List every app with whether the org has it enabled",
+        params: idParams,
+        response: { 200: envelopeSchema(z.array(orgAppListItemSchema)) },
+      },
+    },
+    async (request, reply) => {
+      reply.ok(await service.listOrgApps(db, request.params.id));
+    }
+  );
 
   r.put(
     `${base}/:id/apps/:appId`,

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { seedApp, seedOrg, seedUser } from "../../../__tests__/fixtures.js";
-import { oidcStore } from "../../../db/schema/index.js";
+import { apps, oidcStore } from "../../../db/schema/index.js";
 import {
   type Admin,
   activityOf,
@@ -113,5 +113,64 @@ describe("org apps", () => {
     expect((await h.call("PUT", `/orgs/${org.id}/apps/${MISSING_ID}`)).statusCode).toBe(404);
     expect((await h.call("DELETE", `/orgs/${MISSING_ID}/apps/${app.id}`)).statusCode).toBe(404);
     expect((await h.call("PUT", `/orgs/${org.id}/apps/nope`)).statusCode).toBe(422);
+  });
+});
+
+describe("GET /orgs/:id/apps", () => {
+  it("lists every app with whether the org has it", async () => {
+    const org = await seedOrg(h.db);
+    const probe = await seedApp(h.db, { name: "Zzz Probe", isActive: false });
+    const second = await seedApp(h.db, { name: "Mmm Second", isActive: true });
+    const third = await seedApp(h.db, { name: "Aaa Third", isActive: true });
+    await h.call("PUT", `/orgs/${org.id}/apps/${second.id}`);
+
+    const res = await h.call("GET", `/orgs/${org.id}/apps`);
+    expect(res.statusCode).toBe(200);
+    const items = res.json().data as {
+      appId: string;
+      clientId: string;
+      name: string;
+      isActive: boolean;
+      enabled: boolean;
+    }[];
+    const allApps = await h.db.select().from(apps);
+    expect(items).toHaveLength(allApps.length);
+    expect(items.map((a) => a.appId).sort()).toEqual(allApps.map((a) => a.id).sort());
+
+    const enabledById = new Map(items.map((a) => [a.appId, a.enabled]));
+    expect(enabledById.get(h.adminApp.id)).toBe(false);
+    expect(enabledById.get(probe.id)).toBe(false);
+    expect(enabledById.get(second.id)).toBe(true);
+    expect(enabledById.get(third.id)).toBe(false);
+    expect(items.find((a) => a.appId === probe.id)).toEqual({
+      appId: probe.id,
+      clientId: probe.clientId,
+      name: "Zzz Probe",
+      isActive: false,
+      enabled: false,
+    });
+
+    await h.call("PUT", `/orgs/${org.id}/apps/${probe.id}`);
+    const after = (await h.call("GET", `/orgs/${org.id}/apps`)).json().data as {
+      appId: string;
+      enabled: boolean;
+    }[];
+    expect(after.find((a) => a.appId === probe.id)).toMatchObject({ enabled: true });
+    expect(
+      after
+        .filter((a) => a.enabled)
+        .map((a) => a.appId)
+        .sort()
+    ).toEqual([probe.id, second.id].sort());
+    await h.call("DELETE", `/orgs/${org.id}/apps/${probe.id}`);
+    const final = (await h.call("GET", `/orgs/${org.id}/apps`)).json().data as {
+      appId: string;
+      enabled: boolean;
+    }[];
+    expect(final.find((a) => a.appId === probe.id)).toMatchObject({ enabled: false });
+  });
+
+  it("answers 404 for an unknown org", async () => {
+    expect((await h.call("GET", `/orgs/${MISSING_ID}/apps`)).statusCode).toBe(404);
   });
 });

@@ -32,3 +32,6 @@ export function setMemberRoles(
     return memberView(tx, orgId, userId);
   });
 }
+
+/** The roles an org admin may assign: those of apps enabled for the org. */
+export const listOrgRoles = (db: Db, orgId: string) => repo.orgRoles(db, orgId);
