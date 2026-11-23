@@ -27,6 +27,8 @@ export type BootstrapParams = {
   adminEmail: string;
   adminPassword: string;
   adminRedirectUris: string[];
+  /** Where the admin UI returns after central logout; added to the app, never removed. */
+  adminPostLogoutRedirectUris: string[];
   /** `client_id` of the admin app (env ADMIN_CLIENT_ID). */
   adminClientId: string;
   /** Decoded CLIENT_SECRET_KEY (32 bytes). */
@@ -81,16 +83,31 @@ export async function bootstrap(
           name: "Monexa Admin",
           clientSecretEnc: encryptSecret(secret, p.secretKey),
           redirectUris: p.adminRedirectUris,
+          postLogoutRedirectUris: p.adminPostLogoutRedirectUris,
           allowedGrants: ["authorization_code"],
         })
         .returning();
       adminClientSecret = secret;
-    } else if (p.rotateAdminSecret) {
-      await tx
-        .update(apps)
-        .set({ clientSecretEnc: encryptSecret(secret, p.secretKey), updatedAt: new Date() })
-        .where(eq(apps.id, app.id));
-      adminClientSecret = secret;
+    } else {
+      const missing = p.adminPostLogoutRedirectUris.filter(
+        (uri) => !app?.postLogoutRedirectUris.includes(uri)
+      );
+      if (missing.length > 0) {
+        await tx
+          .update(apps)
+          .set({
+            postLogoutRedirectUris: [...app.postLogoutRedirectUris, ...missing],
+            updatedAt: new Date(),
+          })
+          .where(eq(apps.id, app.id));
+      }
+      if (p.rotateAdminSecret) {
+        await tx
+          .update(apps)
+          .set({ clientSecretEnc: encryptSecret(secret, p.secretKey), updatedAt: new Date() })
+          .where(eq(apps.id, app.id));
+        adminClientSecret = secret;
+      }
     }
     const appId = (app as { id: string }).id;
 
@@ -129,6 +146,13 @@ export async function bootstrap(
 }
 
 const DEFAULT_REDIRECT = "http://localhost:3001/auth/callback";
+const DEFAULT_POST_LOGOUT = "http://localhost:3001/login";
+
+const csv = (raw: string | undefined) =>
+  (raw ?? "")
+    .split(",")
+    .map((uri) => uri.trim())
+    .filter(Boolean);
 
 /**
  * Reads the CLI inputs from env. The password goes through the shared policy; the error
@@ -144,14 +168,13 @@ export function readBootstrapEnv(
   if (!adminPassword) throw new Error("BOOTSTRAP_ADMIN_PASSWORD is required");
   const problem = newPasswordError(adminPassword, adminPassword);
   if (problem) throw new Error(`BOOTSTRAP_ADMIN_PASSWORD rejected: ${problem}`);
-  const uris = (source.BOOTSTRAP_ADMIN_REDIRECT_URIS ?? "")
-    .split(",")
-    .map((uri) => uri.trim())
-    .filter(Boolean);
+  const uris = csv(source.BOOTSTRAP_ADMIN_REDIRECT_URIS);
+  const postLogoutUris = csv(source.BOOTSTRAP_ADMIN_POST_LOGOUT_REDIRECT_URIS);
   return {
     adminEmail,
     adminPassword,
     adminRedirectUris: uris.length > 0 ? uris : [DEFAULT_REDIRECT],
+    adminPostLogoutRedirectUris: postLogoutUris.length > 0 ? postLogoutUris : [DEFAULT_POST_LOGOUT],
     adminClientId: env.ADMIN_CLIENT_ID,
     secretKey: Buffer.from(env.CLIENT_SECRET_KEY, "base64"),
     rotateAdminSecret: source.BOOTSTRAP_ROTATE_ADMIN_SECRET === "true",

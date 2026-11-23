@@ -245,7 +245,8 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     expect(loginHtml).toContain('name="identifier"');
     expect(loginHtml).toContain('name="password"');
     expect(loginHtml).toContain(`value="${uidOf(next)}"`);
-    expect(loginHtml).toContain("/assets/monexa-theme.css");
+    expect(loginHtml).toMatch(/\/assets\/monexa-theme\.css\?v=[0-9a-f]{12}"/);
+    expect(loginHtml).toContain("<h1>Masuk ke akun Anda</h1>");
 
     const picker = await b.post(next, login(next, user.email));
     expect(picker.status).toBe(200);
@@ -354,6 +355,61 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     await db.update(organizations).set({ isActive: false }).where(eq(organizations.id, orgA.id));
     expect(await pageFor(orgA.slug)).not.toContain("/branding/");
     await db.update(organizations).set({ isActive: true }).where(eq(organizations.id, orgA.id));
+  });
+
+  it("renders a dark-scheme <source> only when the org has a dark logo", async () => {
+    const { orgA, user, kit } = await scenario();
+    const logo = { orgId: orgA.id, content: PNG, mime: "image/png", updatedBy: user.id };
+    await upsertLogo(db, { ...logo, etag: "e3" });
+    const page = async () => {
+      const b = new Browser();
+      const { next } = await authorize(b, kit, { org_hint: orgA.slug });
+      return (await b.get(next)).text();
+    };
+    const before = await page();
+    expect(before).not.toContain("<source");
+    expect(before).not.toContain("<picture");
+    await upsertLogo(db, { ...logo, etag: "e4" }, "dark");
+    const html = await page();
+    const src = `/branding/orgs/${orgA.slug}/logo?variant=dark`.replace(/&/g, "&amp;");
+    expect(html).toContain(`<source media="(prefers-color-scheme: dark)" srcset="${src}">`);
+    expect(html.indexOf("<source")).toBeLessThan(html.indexOf('<img class="brand-logo"'));
+    expect(html).toContain(`<img class="brand-logo" src="/branding/orgs/${orgA.slug}/logo"`);
+  });
+
+  it("puts the brand inside the card and shows Admin Console only for the admin client", async () => {
+    const { orgA, user, kit } = await scenario();
+    await upsertLogo(db, {
+      orgId: orgA.id,
+      content: PNG,
+      mime: "image/png",
+      etag: "e2",
+      updatedBy: user.id,
+    });
+    const page = async (k: FastifyInstance) => {
+      const b = new Browser();
+      const { next } = await authorize(b, k, { org_hint: orgA.slug });
+      return (await b.get(next)).text();
+    };
+    const html = await page(kit);
+    const card = html.slice(html.indexOf('<main class="card'), html.indexOf("</main>"));
+    expect(card).toContain(`<img class="brand-logo" src="/branding/orgs/${orgA.slug}/logo"`);
+    expect(html.indexOf("<main")).toBeLessThan(html.indexOf("brand-logo"));
+    expect(html).not.toContain("Admin Console");
+
+    const { secret } = await seedClient(
+      db,
+      key,
+      {
+        clientId: env.ADMIN_CLIENT_ID,
+        allowedGrants: ["authorization_code"],
+        redirectUris: [FE_CALLBACK],
+        postLogoutRedirectUris: [FE_LOGGED_OUT],
+      },
+      CATALOG
+    );
+    const adminHtml = await page(await kitApp(env.ADMIN_CLIENT_ID, secret));
+    expect(adminHtml).toContain("Admin Console");
   });
 
   it("reuses the remembered grant for a slug org_hint naming the same org", async () => {
@@ -560,7 +616,7 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     const action = /action="([^"]+)"/.exec(html)?.[1] as string;
     const xsrf = /name="xsrf" value="([^"]+)"/.exec(html)?.[1] as string;
     expect(html).toContain('name="logout" value="yes"');
-    expect(html).toContain("/assets/auto-submit.js");
+    expect(html).toMatch(/\/assets\/auto-submit\.js\?v=[0-9a-f]{12}"/);
     const confirmed = await b.post(action, { xsrf, logout: "yes" });
     expect(location(confirmed)).toBe(FE_LOGGED_OUT);
 
@@ -688,6 +744,23 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     expect(res.status).toBe(400);
     expect(await res.text()).toContain(MESSAGES.badRequest);
     expect((await b.get(next)).status).toBe(400);
+  });
+
+  it("caches a versioned asset for a year and an unversioned or stale one briefly", async () => {
+    const { b, next } = await (async () => {
+      const { kit } = await scenario();
+      const browser = new Browser();
+      return { b: browser, next: (await authorize(browser, kit)).next };
+    })();
+    const html = await (await b.get(next)).text();
+    const href = /href="(\/assets\/monexa-theme\.css\?v=[0-9a-f]{12})"/.exec(html)?.[1] as string;
+    const versioned = await fetch(`${origin}${href}`);
+    expect(versioned.status).toBe(200);
+    expect(versioned.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+    const stale = await fetch(`${origin}/assets/monexa-theme.css?v=000000000000`);
+    expect(stale.headers.get("cache-control")).toBe("public, max-age=3600");
+    const bare = await fetch(`${origin}/assets/monexa-theme.css`);
+    expect(bare.headers.get("cache-control")).toBe("public, max-age=3600");
   });
 
   it("serves the theme CSS and renders provider errors as an Indonesian page", async () => {

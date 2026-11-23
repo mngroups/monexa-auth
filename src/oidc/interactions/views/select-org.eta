@@ -1,14 +1,28 @@
-<% layout("./layout", { title: it.m.selectOrgTitle, error: it.error, brand: it.brand }) %>
+<% layout("./layout", { title: it.m.selectOrgTitle, subtitle: it.m.selectOrgSubtitle, error: it.error, brand: it.brand, admin: it.admin, wide: true }) %>
+<%
+const initials = (name) => {
+  const words = name.split(/\s+/).filter(Boolean);
+  const rest = words.length > 1 && /^(pt|cv|ud)\.?$/i.test(words[0]) ? words.slice(1) : words;
+  return rest.slice(0, 2).map((w) => Array.from(w)[0]).join("").toUpperCase();
+};
+%>
 <form method="post" action="/interaction/<%= it.uid %>">
   <input type="hidden" name="uid" value="<%= it.uid %>">
   <input type="hidden" name="step" value="select-org">
   <fieldset>
-<% for (const org of it.orgs) { %>
+    <legend class="sr-only"><%= it.m.selectOrgLegend %></legend>
+<% it.orgs.forEach((org, i) => { %>
     <label class="option">
-      <input type="radio" name="org_id" value="<%= org.id %>"<%= org.id === it.checked ? " checked" : "" %> required>
-      <span><%= org.name %></span>
-    </label>
+      <span class="mark mark-<%= i % 4 %>" aria-hidden="true"><%= initials(org.name) %></span>
+      <span class="option-text">
+        <span class="option-name"><%= org.name %></span>
+<% if (org.id === it.lastOrgId) { %>
+        <span class="option-meta"><%= it.m.lastOpened %></span>
 <% } %>
+      </span>
+      <input type="radio" name="org_id" value="<%= org.id %>"<%= org.id === it.checked ? " checked" : "" %> required>
+    </label>
+<% }) %>
   </fieldset>
   <button type="submit"><%= it.m.selectOrgSubmit %></button>
 </form>

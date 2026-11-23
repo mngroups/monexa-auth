@@ -22,6 +22,7 @@ export async function adminClientAuth(
       clientSecret: opts.clientSecret,
       redirectUris: env.ADMIN_REDIRECT_URIS,
       postLogoutRedirectUri: env.ADMIN_POST_LOGOUT_REDIRECT_URI,
+      orgHint: env.ADMIN_ORG_HINT,
     });
   });
 }

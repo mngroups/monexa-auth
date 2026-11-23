@@ -48,7 +48,7 @@ As a platform admin, in the admin UI (or the API, see `openapi/openapi.json`):
 1. **Create the app:** client id, redirect URIs, grants, access TTL and refresh TTL. The client secret is returned once.
 2. **Fill its permission catalog:** strings like `invoice:read` or `org.member:manage`. Roles can only use catalog permissions, and `platform:*` is never granted through roles.
 3. **Create roles** for the app from catalog permissions.
-4. **Brand the org (optional):** upload its login logo (PNG, JPEG or WebP, ≤ 512 KB) on the Organizations page, or let its org admins do it (`org.branding:manage`, part of "Org Admin"). Apps that set `AUTH_ORG_HINT` to the org's slug show it on the login page. After upgrading, re-run `pnpm auth:bootstrap` once so existing installs get the new permission.
+4. **Brand the org (optional):** upload its login logo (PNG, JPEG or WebP, ≤ 512 KB) on the Organizations page, or let its org admins do it (`org.branding:manage`, part of "Org Admin"). Each org has two logo variants: `default` (for light backgrounds, required for branding to show) and an optional `dark` (white or light, for dark backgrounds). Upload or remove one with `PUT`/`DELETE /api/admin/org/logo?variant=default|dark` (or `/api/admin/platform/orgs/:id/logo?variant=...` for platform admins); a missing variant means `default`, any other value is a 422, and removing one variant leaves the other. The admin responses carry `logo` and `logoDark` (`{ etag, updatedAt }` or `null`). The public `GET /branding/orgs/:slug/logo?variant=dark` answers 404 when the org has no dark logo; the sign-in pages render a `<picture>` whose `prefers-color-scheme: dark` source is present only when a dark logo exists. Apps that set `AUTH_ORG_HINT` to the org's slug show it on the login page. After upgrading, re-run `pnpm auth:bootstrap` once so existing installs get the new permission.
 5. **Enable the app for an org**, add members to the org and assign them roles. Org admins (a role holding the `org.*` permissions) manage members, role assignments and the activity log of their own org only. Platform admins can do the same in any org they switch into (`platform:all` satisfies every admin permission); unlike org admins they may also act on other platform admins and reset multi-org users' passwords. Nobody can change their own roles, membership or password through the admin API. The admin app itself cannot be deactivated.
 
 ## Org selection and switching
@@ -85,24 +85,27 @@ Token endpoint failures carry exactly one of these in `error_description`:
 
 ## Environment
 
-| Variable                                   | Default                               | Notes                                                                |
-| ------------------------------------------ | ------------------------------------- | -------------------------------------------------------------------- |
-| `PORT`                                     | `8080` (`.env.example`: `9000`)       |                                                                      |
-| `LOG_LEVEL`                                | `info`                                |                                                                      |
-| `DATABASE_URL`                             | required                              | On Vercel, use a pooler (PgBouncer transaction mode)                 |
-| `DB_POOL_MAX`                              | `10`                                  | Use 1-3 on Vercel                                                    |
-| `OIDC_ISSUER`                              | required                              | Public base URL; clients use `<OIDC_ISSUER>/oidc` as their issuer    |
-| `OIDC_SIGNING_KEY`                         | required                              | RSA private key PEM                                                  |
-| `OIDC_COOKIE_KEYS`                         | required                              | Comma-separated; the first signs, all verify                         |
-| `CLIENT_SECRET_KEY`                        | required                              | base64 of 32 bytes                                                   |
-| `ADMIN_CLIENT_ID`                          | `monexa-admin`                        | The admin app; its platform admins get `platform:all`                |
-| `LOCKOUT_MAX_FAILURES` / `LOCKOUT_MINUTES` | `5` / `15`                            | Password lockout                                                     |
-| `CORS_ORIGINS`                             | -                                     | Comma-separated. Empty means no CORS                                 |
-| `RATE_LIMIT_MAX` / `LOGIN_RATE_LIMIT_MAX`  | `300` / `10`                          | Per minute. `/health` and `/ready` are never limited                 |
-| `TRUST_PROXY`                              | `false`                               | `true` behind a proxy that sets `X-Forwarded-For`                    |
-| `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD`      | -                                     | Only for `pnpm auth:bootstrap`                                       |
-| `BOOTSTRAP_ADMIN_REDIRECT_URIS`            | `http://localhost:3001/auth/callback` | Comma-separated; only for `pnpm auth:bootstrap`                      |
-| `BOOTSTRAP_ROTATE_ADMIN_SECRET`            | `false`                               | `true` issues a new admin app secret; only for `pnpm auth:bootstrap` |
+| Variable                                    | Default                               | Notes                                                                                   |
+| ------------------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------- |
+| `PORT`                                      | `8080` (`.env.example`: `9000`)       |                                                                                         |
+| `LOG_LEVEL`                                 | `info`                                |                                                                                         |
+| `DATABASE_URL`                              | required                              | On Vercel, use a pooler (PgBouncer transaction mode)                                    |
+| `DB_POOL_MAX`                               | `10`                                  | Use 1-3 on Vercel                                                                       |
+| `OIDC_ISSUER`                               | required                              | Public base URL; clients use `<OIDC_ISSUER>/oidc` as their issuer                       |
+| `OIDC_SIGNING_KEY`                          | required                              | RSA private key PEM                                                                     |
+| `OIDC_COOKIE_KEYS`                          | required                              | Comma-separated; the first signs, all verify                                            |
+| `CLIENT_SECRET_KEY`                         | required                              | base64 of 32 bytes                                                                      |
+| `ADMIN_CLIENT_ID`                           | `monexa-admin`                        | The admin app; its platform admins get `platform:all`                                   |
+| `ADMIN_POST_LOGOUT_REDIRECT_URI`            | `http://localhost:3001/login`         | Where central logout returns the admin UI; must be registered on the admin app          |
+| `ADMIN_ORG_HINT`                            | -                                     | Org slug or id: the admin UI's login shows that org's logo and the admin lands in it    |
+| `LOCKOUT_MAX_FAILURES` / `LOCKOUT_MINUTES`  | `5` / `15`                            | Password lockout                                                                        |
+| `CORS_ORIGINS`                              | -                                     | Comma-separated. Empty means no CORS                                                    |
+| `RATE_LIMIT_MAX` / `LOGIN_RATE_LIMIT_MAX`   | `300` / `10`                          | Per minute. `/health` and `/ready` are never limited                                    |
+| `TRUST_PROXY`                               | `false`                               | `true` behind a proxy that sets `X-Forwarded-For`                                       |
+| `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD`       | -                                     | Only for `pnpm auth:bootstrap`                                                          |
+| `BOOTSTRAP_ADMIN_REDIRECT_URIS`             | `http://localhost:3001/auth/callback` | Comma-separated; only for `pnpm auth:bootstrap`                                         |
+| `BOOTSTRAP_ADMIN_POST_LOGOUT_REDIRECT_URIS` | `http://localhost:3001/login`         | Comma-separated; added to the admin app (never removed); only for `pnpm auth:bootstrap` |
+| `BOOTSTRAP_ROTATE_ADMIN_SECRET`             | `false`                               | `true` issues a new admin app secret; only for `pnpm auth:bootstrap`                    |
 
 An empty value counts as unset. A bad env fails at boot, and the error names the keys but never their values.
 

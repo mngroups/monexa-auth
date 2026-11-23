@@ -29,6 +29,8 @@ let db: Db;
 let closeDb: () => Promise<void>;
 let env: Env;
 let app: FastifyInstance;
+let hintedApp: FastifyInstance;
+let hintedEnv: Env;
 
 beforeAll(async () => {
   ({ db, close: closeDb } = await createTestDb());
@@ -39,9 +41,18 @@ beforeAll(async () => {
   });
   app = await buildApp({ env, db });
   await app.listen({ port, host: "127.0.0.1" });
+  const hintedPort = await freePort();
+  hintedEnv = testEnv({
+    OIDC_ISSUER: `http://127.0.0.1:${hintedPort}`,
+    ADMIN_CLIENT_SECRET: "admin-secret",
+    ADMIN_ORG_HINT: "monexa",
+  });
+  hintedApp = await buildApp({ env: hintedEnv, db });
+  await hintedApp.listen({ port: hintedPort, host: "127.0.0.1" });
 });
 
 afterAll(async () => {
+  await hintedApp.close();
   await app.close();
   await closeDb();
 });
@@ -57,6 +68,23 @@ describe("kit auth routes for the admin app", () => {
     expect(url.href.startsWith(`${env.OIDC_ISSUER}/oidc/auth`)).toBe(true);
     expect(url.searchParams.get("client_id")).toBe("monexa-admin");
     expect(url.searchParams.get("redirect_uri")).toBe(REDIRECT);
+  });
+
+  it("carries org_hint in the authorize URL only when ADMIN_ORG_HINT is set", async () => {
+    const plain = new URL((await authorizeUrl(REDIRECT)).json().data.url);
+    expect(plain.searchParams.has("org_hint")).toBe(false);
+    const res = await hintedApp.inject({
+      url: `/v1/auth/authorize-url?redirect_uri=${encodeURIComponent(REDIRECT)}`,
+    });
+    expect(new URL(res.json().data.url).searchParams.get("org_hint")).toBe("monexa");
+  });
+
+  it("returns the end_session_url with the default post-logout URI", async () => {
+    const res = await app.inject({ method: "POST", url: "/v1/auth/logout", payload: {} });
+    expect(res.statusCode).toBe(200);
+    const url = new URL(res.json().data.end_session_url);
+    expect(url.href.startsWith(`${env.OIDC_ISSUER}/oidc/session/end`)).toBe(true);
+    expect(url.searchParams.get("post_logout_redirect_uri")).toBe("http://localhost:3001/login");
   });
 
   it("refuses a redirect_uri outside ADMIN_REDIRECT_URIS", async () => {

@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import { findLogoBySlug } from "./logo.repository.js";
+import { findLogoBySlug, type LogoVariant } from "./logo.repository.js";
 
 export const LOGO_PATH = (slug: string) => `/branding/orgs/${encodeURIComponent(slug)}/logo`;
 
@@ -15,10 +15,18 @@ export async function brandingPublicRoutes(app: FastifyInstance, { db }: { db: D
   app.withTypeProvider<ZodTypeProvider>().get(
     "/branding/orgs/:slug/logo",
     {
-      schema: { hide: true, params: z.object({ slug: z.string().min(1).max(100) }) },
+      schema: {
+        hide: true,
+        params: z.object({ slug: z.string().min(1).max(100) }),
+        querystring: z.object({ variant: z.string().optional() }),
+      },
     },
     async (request, reply) => {
-      const logo = await findLogoBySlug(db, request.params.slug);
+      const variant = request.query.variant ?? "default";
+      if (variant !== "default" && variant !== "dark") {
+        return reply.code(404).type("text/plain").send("Not found");
+      }
+      const logo = await findLogoBySlug(db, request.params.slug, variant satisfies LogoVariant);
       if (!logo) return reply.code(404).type("text/plain").send("Not found");
       const etag = `"${logo.etag}"`;
       reply

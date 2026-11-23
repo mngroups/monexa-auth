@@ -220,6 +220,25 @@
                                   "updatedAt"
                                 ],
                                 "additionalProperties": false
+                              },
+                              "logoDark": {
+                                "nullable": true,
+                                "type": "object",
+                                "properties": {
+                                  "etag": {
+                                    "type": "string"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  }
+                                },
+                                "required": [
+                                  "etag",
+                                  "updatedAt"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -229,7 +248,8 @@
                               "isActive",
                               "createdAt",
                               "updatedAt",
-                              "logo"
+                              "logo",
+                              "logoDark"
                             ],
                             "additionalProperties": false
                           }
@@ -376,6 +396,25 @@
                             "updatedAt"
                           ],
                           "additionalProperties": false
+                        },
+                        "logoDark": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "etag": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "etag",
+                            "updatedAt"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -385,7 +424,8 @@
                         "isActive",
                         "createdAt",
                         "updatedAt",
-                        "logo"
+                        "logo",
+                        "logoDark"
                       ],
                       "additionalProperties": false
                     }
@@ -517,6 +557,25 @@
                             "updatedAt"
                           ],
                           "additionalProperties": false
+                        },
+                        "logoDark": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "etag": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "etag",
+                            "updatedAt"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -526,7 +585,8 @@
                         "isActive",
                         "createdAt",
                         "updatedAt",
-                        "logo"
+                        "logo",
+                        "logoDark"
                       ],
                       "additionalProperties": false
                     }
@@ -636,6 +696,25 @@
                             "updatedAt"
                           ],
                           "additionalProperties": false
+                        },
+                        "logoDark": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "etag": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "etag",
+                            "updatedAt"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -645,7 +724,8 @@
                         "isActive",
                         "createdAt",
                         "updatedAt",
-                        "logo"
+                        "logo",
+                        "logoDark"
                       ],
                       "additionalProperties": false
                     }
@@ -755,6 +835,25 @@
                             "updatedAt"
                           ],
                           "additionalProperties": false
+                        },
+                        "logoDark": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "etag": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "etag",
+                            "updatedAt"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -764,7 +863,8 @@
                         "isActive",
                         "createdAt",
                         "updatedAt",
-                        "logo"
+                        "logo",
+                        "logoDark"
                       ],
                       "additionalProperties": false
                     }
@@ -1075,11 +1175,24 @@
     },
     "/api/admin/platform/orgs/{id}/logo": {
       "put": {
-        "summary": "Upload or replace an org's login logo (PNG, JPEG or WebP, max 512 KB)",
+        "summary": "Upload or replace an org's login logo (`?variant=default|dark`; PNG, JPEG or WebP, max 512 KB)",
         "tags": [
           "admin-platform"
         ],
         "parameters": [
+          {
+            "schema": {
+              "default": "default",
+              "type": "string",
+              "enum": [
+                "default",
+                "dark"
+              ]
+            },
+            "in": "query",
+            "name": "variant",
+            "required": false
+          },
           {
             "schema": {
               "type": "string",
@@ -1154,11 +1267,24 @@
         }
       },
       "delete": {
-        "summary": "Remove an org's login logo",
+        "summary": "Remove an org's login logo (`?variant=default|dark`)",
         "tags": [
           "admin-platform"
         ],
         "parameters": [
+          {
+            "schema": {
+              "default": "default",
+              "type": "string",
+              "enum": [
+                "default",
+                "dark"
+              ]
+            },
+            "in": "query",
+            "name": "variant",
+            "required": false
+          },
           {
             "schema": {
               "type": "string",
@@ -5536,12 +5662,32 @@
                             "updatedAt"
                           ],
                           "additionalProperties": false
+                        },
+                        "logoDark": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "etag": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "etag",
+                            "updatedAt"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
                         "slug",
                         "name",
-                        "logo"
+                        "logo",
+                        "logoDark"
                       ],
                       "additionalProperties": false
                     }
@@ -5562,9 +5708,24 @@
     },
     "/api/admin/org/logo": {
       "put": {
-        "summary": "Upload or replace the org's login logo (PNG, JPEG or WebP, max 512 KB)",
+        "summary": "Upload or replace the org's login logo (`?variant=default|dark`; PNG, JPEG or WebP, max 512 KB)",
         "tags": [
           "admin-org"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "default": "default",
+              "type": "string",
+              "enum": [
+                "default",
+                "dark"
+              ]
+            },
+            "in": "query",
+            "name": "variant",
+            "required": false
+          }
         ],
         "security": [
           {
@@ -5629,9 +5790,24 @@
         }
       },
       "delete": {
-        "summary": "Remove the org's login logo",
+        "summary": "Remove the org's login logo (`?variant=default|dark`)",
         "tags": [
           "admin-org"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "default": "default",
+              "type": "string",
+              "enum": [
+                "default",
+                "dark"
+              ]
+            },
+            "in": "query",
+            "name": "variant",
+            "required": false
+          }
         ],
         "security": [
           {

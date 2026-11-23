@@ -12,7 +12,13 @@ export const toLogo = (meta: repo.LogoMeta | undefined) =>
   meta ? { etag: meta.etag, updatedAt: iso(meta.updatedAt) } : null;
 
 /** Validates and stores an org's logo (type from the bytes, ≤ 512 KB) and logs the change. */
-export function setLogo(db: Db, actor: Actor, orgId: string, file: LogoUpload | undefined) {
+export function setLogo(
+  db: Db,
+  actor: Actor,
+  orgId: string,
+  file: LogoUpload | undefined,
+  variant: repo.LogoVariant = "default"
+) {
   if (!file) throw new AppError(422, MESSAGES_AUTH.logoMissing);
   if (file.truncated || file.content.length > LOGO_MAX_BYTES) {
     throw new AppError(422, MESSAGES_AUTH.logoTooLarge);
@@ -21,32 +27,36 @@ export function setLogo(db: Db, actor: Actor, orgId: string, file: LogoUpload | 
   if (!mime) throw new AppError(422, MESSAGES_AUTH.logoInvalidType);
   const etag = createHash("sha256").update(file.content).digest("hex");
   return db.transaction(async (tx) => {
-    const meta = await repo.upsertLogo(tx, {
-      orgId,
-      content: file.content,
-      mime,
-      etag,
-      updatedBy: actor.userId,
-    });
+    const meta = await repo.upsertLogo(
+      tx,
+      { orgId, content: file.content, mime, etag, updatedBy: actor.userId },
+      variant
+    );
     await audit(tx, actor, {
       action: "org.logo.updated",
       targetType: "org",
       targetId: orgId,
       orgId,
-      metadata: { mime, size: file.content.length },
+      metadata: { variant, mime, size: file.content.length },
     });
     return toLogo(meta) as { etag: string; updatedAt: string };
   });
 }
 
-export function removeLogo(db: Db, actor: Actor, orgId: string) {
+export function removeLogo(
+  db: Db,
+  actor: Actor,
+  orgId: string,
+  variant: repo.LogoVariant = "default"
+) {
   return db.transaction(async (tx) => {
-    if (await repo.deleteLogo(tx, orgId)) {
+    if (await repo.deleteLogo(tx, orgId, variant)) {
       await audit(tx, actor, {
         action: "org.logo.removed",
         targetType: "org",
         targetId: orgId,
         orgId,
+        metadata: { variant },
       });
     }
     return null;

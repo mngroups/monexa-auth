@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { readLogoUpload } from "../../branding/upload.js";
+import { logoVariantQuery } from "../../branding/variant.js";
 import type { Db } from "../../db/client.js";
 import { logoSchema } from "../org/branding.routes.js";
 import {
@@ -30,6 +31,7 @@ export const orgSchema = z.object({
   createdAt: isoDate,
   updatedAt: isoDate,
   logo: logoSchema.nullable(),
+  logoDark: logoSchema.nullable(),
 });
 
 const orgAppSchema = z.object({
@@ -171,9 +173,11 @@ export async function orgRoutes(app: FastifyInstance, { db }: { db: Db }) {
     {
       schema: {
         ...routeMeta,
-        summary: "Upload or replace an org's login logo (PNG, JPEG or WebP, max 512 KB)",
+        summary:
+          "Upload or replace an org's login logo (`?variant=default|dark`; PNG, JPEG or WebP, max 512 KB)",
         consumes: ["multipart/form-data"],
         params: idParams,
+        querystring: logoVariantQuery,
         response: { 200: envelopeSchema(logoSchema) },
       },
     },
@@ -183,7 +187,8 @@ export async function orgRoutes(app: FastifyInstance, { db }: { db: Db }) {
           db,
           actorOf(request),
           request.params.id,
-          await readLogoUpload(request)
+          await readLogoUpload(request),
+          request.query.variant
         )
       );
     }
@@ -194,13 +199,16 @@ export async function orgRoutes(app: FastifyInstance, { db }: { db: Db }) {
     {
       schema: {
         ...routeMeta,
-        summary: "Remove an org's login logo",
+        summary: "Remove an org's login logo (`?variant=default|dark`)",
         params: idParams,
+        querystring: logoVariantQuery,
         response: { 200: envelopeSchema(z.null()) },
       },
     },
     async (request, reply) => {
-      reply.ok(await service.removeOrgLogo(db, actorOf(request), request.params.id));
+      reply.ok(
+        await service.removeOrgLogo(db, actorOf(request), request.params.id, request.query.variant)
+      );
     }
   );
 }
