@@ -19,7 +19,15 @@
       <span class="grab" aria-hidden="true"></span>
       <div class="brand-block">
 <% if (it.brand) { %>
-        <img class="brand-logo" src="/branding/orgs/<%= encodeURIComponent(it.brand.slug) %>/logo" alt="<%= it.brand.name %>">
+<% const logoUrl = "/branding/orgs/" + encodeURIComponent(it.brand.slug) + "/logo"; %>
+<% if (it.brand.hasDark) { %>
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="<%= logoUrl %>?variant=dark">
+          <img class="brand-logo" src="<%= logoUrl %>" alt="<%= it.brand.name %>">
+        </picture>
+<% } else { %>
+        <img class="brand-logo" src="<%= logoUrl %>" alt="<%= it.brand.name %>">
+<% } %>
 <% } else { %>
         <div class="brand" role="img" aria-label="Monexa">
           <span class="brand-mark"><svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M6 24V9l10 9 10-9v15" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>

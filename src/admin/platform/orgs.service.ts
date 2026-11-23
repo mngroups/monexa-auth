@@ -8,14 +8,15 @@ import { revokeGrants } from "../../oidc/revoke.js";
 import { type Actor, audit, iso, orConflict, type PageQuery } from "./common.js";
 import * as repo from "./orgs.repository.js";
 
-export const toOrg = (o: OrganizationRow, logo: logos.LogoMeta | undefined) => ({
+export const toOrg = (o: OrganizationRow, logo: logos.LogoMetas | undefined) => ({
   id: o.id,
   slug: o.slug,
   name: o.name,
   isActive: o.isActive,
   createdAt: iso(o.createdAt),
   updatedAt: iso(o.updatedAt),
-  logo: toLogo(logo),
+  logo: toLogo(logo?.logo),
+  logoDark: toLogo(logo?.logoDark),
 });
 
 /** `toOrg` with the org's current logo state. */
@@ -136,12 +137,23 @@ export function disableOrgApp(db: Db, actor: Actor, orgId: string, appId: string
 }
 
 /** Any org's login logo, for platform admins (the Organizations page). */
-export async function setOrgLogo(db: Db, actor: Actor, id: string, file: LogoUpload | undefined) {
+export async function setOrgLogo(
+  db: Db,
+  actor: Actor,
+  id: string,
+  file: LogoUpload | undefined,
+  variant: logos.LogoVariant = "default"
+) {
   await requireOrg(db, id);
-  return setLogo(db, actor, id, file);
+  return setLogo(db, actor, id, file, variant);
 }
 
-export async function removeOrgLogo(db: Db, actor: Actor, id: string) {
+export async function removeOrgLogo(
+  db: Db,
+  actor: Actor,
+  id: string,
+  variant: logos.LogoVariant = "default"
+) {
   await requireOrg(db, id);
-  return removeLogo(db, actor, id);
+  return removeLogo(db, actor, id, variant);
 }

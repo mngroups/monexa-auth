@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { JPEG, multipart, PNG, SVG } from "../../../branding/__tests__/files.js";
-import { orgLogos } from "../../../db/schema/index.js";
+import { orgLogos, orgLogosDark } from "../../../db/schema/index.js";
 import { activityOf } from "../../__tests__/harness.js";
 import { bootOrg, ORG_PERMISSIONS, type OrgHarness } from "./harness.js";
 
@@ -94,6 +94,51 @@ describe("org logo (org admin)", () => {
   });
 });
 
+const darkOf = async (orgId: string) =>
+  (await h.db.select().from(orgLogosDark).where(eq(orgLogosDark.orgId, orgId)))[0];
+
+describe("org logo variants (org admin)", () => {
+  it("stores the dark variant apart from the default and logs the variant", async () => {
+    const token = await h.tokenFor(h.admin.id, h.orgA.id, BRANDING);
+    await upload(token);
+    const res = await upload(token, multipart(JPEG), "/api/admin/org/logo?variant=dark");
+    expect(res.statusCode).toBe(200);
+    expect((await darkOf(h.orgA.id))?.mime).toBe("image/jpeg");
+    expect((await logoOf(h.orgA.id))?.mime).toBe("image/png");
+    const logged = await activityOf(h.db, "org.logo.updated");
+    expect(logged.map((a) => (a.metadata as { variant: string }).variant).sort()).toContain("dark");
+    expect(logged.map((a) => (a.metadata as { variant: string }).variant)).toContain("default");
+  });
+
+  it("removes only the named variant", async () => {
+    const token = await h.tokenFor(h.admin.id, h.orgA.id, BRANDING);
+    await upload(token);
+    await upload(token, multipart(JPEG), "/api/admin/org/logo?variant=dark");
+    expect((await h.call("DELETE", "/logo?variant=dark", undefined, token)).statusCode).toBe(200);
+    expect(await darkOf(h.orgA.id)).toBeUndefined();
+    expect(await logoOf(h.orgA.id)).toBeDefined();
+    const removed = await activityOf(h.db, "org.logo.removed");
+    expect(removed.map((a) => (a.metadata as { variant: string }).variant)).toContain("dark");
+  });
+
+  it("answers 422 for an unknown variant and stores nothing", async () => {
+    const token = await h.tokenFor(h.admin.id, h.orgA.id, BRANDING);
+    await h.db.delete(orgLogos).where(eq(orgLogos.orgId, h.orgA.id));
+    for (const v of ["light", "", "DARK"]) {
+      const res = await upload(token, multipart(PNG), `/api/admin/org/logo?variant=${v}`);
+      expect(res.statusCode).toBe(422);
+      expect((await h.call("DELETE", `/logo?variant=${v}`, undefined, token)).statusCode).toBe(422);
+    }
+    expect(await logoOf(h.orgA.id)).toBeUndefined();
+  });
+
+  it("applies the same validation to the dark variant", async () => {
+    const token = await h.tokenFor(h.admin.id, h.orgA.id, BRANDING);
+    const bad = multipart(SVG, "logo.png", "image/png");
+    expect((await upload(token, bad, "/api/admin/org/logo?variant=dark")).statusCode).toBe(422);
+  });
+});
+
 describe("GET /org/branding", () => {
   it("returns the token's org slug, name and logo state", async () => {
     const token = await h.tokenFor(h.admin.id, h.orgA.id, BRANDING);
@@ -106,12 +151,17 @@ describe("GET /org/branding", () => {
     await h.db.delete(orgLogos).where(eq(orgLogos.orgId, h.orgA.id));
     const before = await get();
     expect(before.statusCode).toBe(200);
-    expect(before.json().data).toEqual({ slug: h.orgA.slug, name: h.orgA.name, logo: null });
-    expect((await upload(token)).statusCode).toBe(200);
-    expect((await get()).json().data.logo).toEqual({
-      etag: expect.any(String),
-      updatedAt: expect.any(String),
+    expect(before.json().data).toEqual({
+      slug: h.orgA.slug,
+      name: h.orgA.name,
+      logo: null,
+      logoDark: null,
     });
+    expect((await upload(token)).statusCode).toBe(200);
+    const meta = { etag: expect.any(String), updatedAt: expect.any(String) };
+    expect((await get()).json().data).toMatchObject({ logo: meta, logoDark: null });
+    await upload(token, multipart(JPEG), "/api/admin/org/logo?variant=dark");
+    expect((await get()).json().data).toMatchObject({ logo: meta, logoDark: meta });
   });
 
   it("needs org.branding:manage", async () => {

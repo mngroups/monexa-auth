@@ -9,9 +9,11 @@ import { findOrgBranding } from "./org-branding.repository.js";
 export async function orgBranding(db: Db, orgId: string) {
   const org = await findOrgBranding(db, orgId);
   if (!org) throw new AppError(404, MESSAGES_AUTH.orgNotFound);
+  const metas = (await logoMetaByOrgIds(db, [orgId])).get(orgId);
   return {
     slug: org.slug,
     name: org.name,
-    logo: toLogo((await logoMetaByOrgIds(db, [orgId])).get(orgId)),
+    logo: toLogo(metas?.logo),
+    logoDark: toLogo(metas?.logoDark),
   };
 }

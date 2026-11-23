@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { seedOrg } from "../../../__tests__/fixtures.js";
-import { multipart, PNG } from "../../../branding/__tests__/files.js";
+import { JPEG, multipart, PNG } from "../../../branding/__tests__/files.js";
 import { type Admin, bootAdmin, MISSING_ID } from "../../__tests__/harness.js";
 
 let h: Admin;
@@ -18,6 +18,46 @@ const upload = (orgId: string) => {
     headers: { ...body.headers, authorization: `Bearer ${h.token}` },
   });
 };
+
+describe("org logo variants (platform admin)", () => {
+  it("sets and removes the dark variant independently, and the list shows logoDark", async () => {
+    const org = await seedOrg(h.db, { name: "Eta Dark" });
+    const listed = async () =>
+      (await h.call("GET", "/orgs?q=Eta")).json().data.items[0] as {
+        logo: unknown;
+        logoDark: unknown;
+      };
+    const body = multipart(JPEG);
+    const put = (variant: string) =>
+      h.app.inject({
+        method: "PUT",
+        url: `/api/admin/platform/orgs/${org.id}/logo?variant=${variant}`,
+        payload: body.payload,
+        headers: { ...body.headers, authorization: `Bearer ${h.token}` },
+      });
+    expect(await listed()).toMatchObject({ logo: null, logoDark: null });
+    await upload(org.id);
+    expect((await put("dark")).statusCode).toBe(200);
+    const meta = { etag: expect.any(String), updatedAt: expect.any(String) };
+    expect(await listed()).toMatchObject({ logo: meta, logoDark: meta });
+
+    expect((await h.call("DELETE", `/orgs/${org.id}/logo?variant=dark`)).statusCode).toBe(200);
+    expect(await listed()).toMatchObject({ logo: meta, logoDark: null });
+  });
+
+  it("answers 422 for a bad variant", async () => {
+    const org = await seedOrg(h.db, { name: "Theta Dark" });
+    expect((await h.call("DELETE", `/orgs/${org.id}/logo?variant=blue`)).statusCode).toBe(422);
+    const body = multipart(PNG);
+    const res = await h.app.inject({
+      method: "PUT",
+      url: `/api/admin/platform/orgs/${org.id}/logo?variant=blue`,
+      payload: body.payload,
+      headers: { ...body.headers, authorization: `Bearer ${h.token}` },
+    });
+    expect(res.statusCode).toBe(422);
+  });
+});
 
 describe("org logo (platform admin)", () => {
   it("sets and removes any org's logo, and the org list shows its state", async () => {

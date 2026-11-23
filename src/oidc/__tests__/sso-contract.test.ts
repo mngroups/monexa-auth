@@ -357,6 +357,26 @@ describe("sso contract (kit auth plugin in sso mode → monexa-auth interactions
     await db.update(organizations).set({ isActive: true }).where(eq(organizations.id, orgA.id));
   });
 
+  it("renders a dark-scheme <source> only when the org has a dark logo", async () => {
+    const { orgA, user, kit } = await scenario();
+    const logo = { orgId: orgA.id, content: PNG, mime: "image/png", updatedBy: user.id };
+    await upsertLogo(db, { ...logo, etag: "e3" });
+    const page = async () => {
+      const b = new Browser();
+      const { next } = await authorize(b, kit, { org_hint: orgA.slug });
+      return (await b.get(next)).text();
+    };
+    const before = await page();
+    expect(before).not.toContain("<source");
+    expect(before).not.toContain("<picture");
+    await upsertLogo(db, { ...logo, etag: "e4" }, "dark");
+    const html = await page();
+    const src = `/branding/orgs/${orgA.slug}/logo?variant=dark`.replace(/&/g, "&amp;");
+    expect(html).toContain(`<source media="(prefers-color-scheme: dark)" srcset="${src}">`);
+    expect(html.indexOf("<source")).toBeLessThan(html.indexOf('<img class="brand-logo"'));
+    expect(html).toContain(`<img class="brand-logo" src="/branding/orgs/${orgA.slug}/logo"`);
+  });
+
   it("puts the brand inside the card and shows Admin Console only for the admin client", async () => {
     const { orgA, user, kit } = await scenario();
     await upsertLogo(db, {

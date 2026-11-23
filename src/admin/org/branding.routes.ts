@@ -5,6 +5,7 @@ import { z } from "zod";
 import * as service from "../../branding/logo.service.js";
 import { orgBranding } from "../../branding/org-branding.service.js";
 import { readLogoUpload } from "../../branding/upload.js";
+import { logoVariantQuery } from "../../branding/variant.js";
 import type { Db } from "../../db/client.js";
 import type { Env } from "../../env.js";
 import { PERMISSIONS } from "../../permissions.js";
@@ -26,7 +27,12 @@ export async function brandingRoutes(app: FastifyInstance, { db, env }: { db: Db
         summary: "The org's slug, name and login-logo state",
         response: {
           200: envelopeSchema(
-            z.object({ slug: z.string(), name: z.string(), logo: logoSchema.nullable() })
+            z.object({
+              slug: z.string(),
+              name: z.string(),
+              logo: logoSchema.nullable(),
+              logoDark: logoSchema.nullable(),
+            })
           ),
         },
       },
@@ -41,14 +47,22 @@ export async function brandingRoutes(app: FastifyInstance, { db, env }: { db: Db
     {
       schema: {
         ...routeMeta,
-        summary: "Upload or replace the org's login logo (PNG, JPEG or WebP, max 512 KB)",
+        summary:
+          "Upload or replace the org's login logo (`?variant=default|dark`; PNG, JPEG or WebP, max 512 KB)",
         consumes: ["multipart/form-data"],
+        querystring: logoVariantQuery,
         response: { 200: envelopeSchema(logoSchema) },
       },
     },
     async (request, reply) => {
       reply.ok(
-        await service.setLogo(db, actorOf(request), orgOf(request), await readLogoUpload(request))
+        await service.setLogo(
+          db,
+          actorOf(request),
+          orgOf(request),
+          await readLogoUpload(request),
+          request.query.variant
+        )
       );
     }
   );
@@ -58,12 +72,15 @@ export async function brandingRoutes(app: FastifyInstance, { db, env }: { db: Db
     {
       schema: {
         ...routeMeta,
-        summary: "Remove the org's login logo",
+        summary: "Remove the org's login logo (`?variant=default|dark`)",
+        querystring: logoVariantQuery,
         response: { 200: envelopeSchema(z.null()) },
       },
     },
     async (request, reply) => {
-      reply.ok(await service.removeLogo(db, actorOf(request), orgOf(request)));
+      reply.ok(
+        await service.removeLogo(db, actorOf(request), orgOf(request), request.query.variant)
+      );
     }
   );
 }
