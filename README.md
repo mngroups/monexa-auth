@@ -13,6 +13,8 @@ Registry access is the same as in the FE template:
   - Elsewhere, provide it as `GITLAB_NPM_TOKEN`.
 - `pnpm registry:run <args>` runs pnpm with a temporary npm config that is deleted when pnpm exits. Never commit a token or a generated `.npmrc`.
 
+Update every `@mono/*` package to its latest release in one go with `pnpm deps:mono` (runs `pnpm update "@mono/*" --latest` through `registry:run`), then run the full check before committing.
+
 ```bash
 pnpm registry:run install
 docker compose up -d        # Postgres only, :5432
