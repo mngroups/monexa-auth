@@ -22,7 +22,7 @@ Fastify 5 backend on `@mono/server-kit` (read its README for the plugin options)
 - Org admins can't act on themselves or on platform admins. `platform:*` permissions are never granted through roles.
 - Never log secrets (passwords, hashes, tokens, client secrets, codes) or identifiers of unknown users.
 - `oidc-provider` is pinned to `~9.15.1`: the org id is persisted through `Grant.IN_PAYLOAD`, an internal. Re-check `src/oidc/provider.ts` and the org tests before bumping it.
-- Expired `oidc_store` rows are removed by `pnpm auth:cleanup` from cron, never from request handling.
+- Expired `oidc_store` rows are removed from cron only, never from request handling: `pnpm auth:cleanup` / `node dist/cli/cleanup.js` (Docker), or Vercel Cron calling `GET /api/cron/cleanup` with `CRON_SECRET`.
 - Every route declares Zod request **and** response schemas.
 - Handlers call `reply.ok(...)` and never `return reply.ok(...)` (it's a type error with a response schema). Expected failures throw the kit's `AppError` with Indonesian copy.
 - Never re-implement what the kit owns:

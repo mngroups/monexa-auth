@@ -104,6 +104,7 @@ Token endpoint failures carry exactly one of these in `error_description`:
 | `CORS_ORIGINS`                              | -                                     | Comma-separated. Empty means no CORS                                                    |
 | `RATE_LIMIT_MAX` / `LOGIN_RATE_LIMIT_MAX`   | `300` / `10`                          | Per minute. `/health` and `/ready` are never limited                                    |
 | `TRUST_PROXY`                               | `false`                               | `true` behind a proxy that sets `X-Forwarded-For`                                       |
+| `CRON_SECRET`                               | -                                     | At least 16 chars. Mounts `GET /api/cron/cleanup` for Vercel Cron (bearer auth)         |
 | `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD`       | -                                     | Only for `pnpm auth:bootstrap`                                                          |
 | `BOOTSTRAP_ADMIN_REDIRECT_URIS`             | `http://localhost:3001/auth/callback` | Comma-separated; only for `pnpm auth:bootstrap`                                         |
 | `BOOTSTRAP_ADMIN_POST_LOGOUT_REDIRECT_URIS` | `http://localhost:3001/login`         | Comma-separated; added to the admin app (never removed); only for `pnpm auth:bootstrap` |
@@ -121,7 +122,7 @@ docker build --secret id=gitlab_npm_token,env=GITLAB_NPM_TOKEN --build-arg GITLA
 
 Run migrations as a release step before rollout: `node dist/db/migrate.js` in the image, or the **Migrate** GitHub workflow. Run `node dist/cli/bootstrap.js` in the image once against the new database (with the `BOOTSTRAP_*` env set; `pnpm auth:bootstrap` is the dev equivalent). Migrations never run at boot.
 
-A Vercel entry (`api/index.ts`, `vercel.json`) is kept from the template and works, but it is not the recommended home for an identity provider. If you use it, set `GITLAB_NPM_TOKEN` and `GITLAB_PACKAGE_GROUP_ID`, a pooled `DATABASE_URL` and `DB_POOL_MAX` of 1-3. Production builds migrate through `scripts/vercel-build.sh`; previews skip migrations unless `MIGRATE_ON_PREVIEW=true`, and `MIGRATION_DATABASE_URL` can hold a direct connection.
+A Vercel entry (`api/index.ts`, `vercel.json`) is kept from the template and works, but it is not the recommended home for an identity provider. If you use it, set `GITLAB_NPM_TOKEN` and `GITLAB_PACKAGE_GROUP_ID`, a pooled `DATABASE_URL` and `DB_POOL_MAX` of 1-3. Production builds migrate through `scripts/vercel-build.sh`; previews skip migrations unless `MIGRATE_ON_PREVIEW=true`, and `MIGRATION_DATABASE_URL` can hold a direct connection. Expired-row cleanup runs through Vercel Cron (`vercel.json`, daily) once `CRON_SECRET` is set. Step-by-step for this service and the admin UI: [docs/deploy-vercel.md](docs/deploy-vercel.md).
 
 ### Expired-row cleanup
 
