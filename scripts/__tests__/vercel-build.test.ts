@@ -36,6 +36,26 @@ describe("vercel-build.sh", () => {
     expect(calls[0]).toBe("db:migrate db=postgres://direct/app");
   });
 
+  it("falls back to Neon's DATABASE_URL_UNPOOLED when MIGRATION_DATABASE_URL is unset", () => {
+    const calls = run({
+      VERCEL_ENV: "production",
+      DATABASE_URL_UNPOOLED: "postgres://unpooled/app",
+    });
+    expect(calls).toEqual([
+      "db:migrate db=postgres://unpooled/app",
+      "build db=postgres://pooler/app",
+    ]);
+  });
+
+  it("keeps an explicit MIGRATION_DATABASE_URL ahead of DATABASE_URL_UNPOOLED", () => {
+    const calls = run({
+      VERCEL_ENV: "production",
+      MIGRATION_DATABASE_URL: "postgres://direct/app",
+      DATABASE_URL_UNPOOLED: "postgres://unpooled/app",
+    });
+    expect(calls[0]).toBe("db:migrate db=postgres://direct/app");
+  });
+
   it("never runs a branch's migrations on preview deployments unless opted in", () => {
     expect(run({ VERCEL_ENV: "preview" })).toEqual(["build db=postgres://pooler/app"]);
     expect(run({ VERCEL_ENV: "preview", MIGRATE_ON_PREVIEW: "true" })[0]).toMatch(/^db:migrate/);
