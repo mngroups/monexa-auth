@@ -40,6 +40,7 @@ describe("vercel wrapper", () => {
       "env",
       "update",
       "GITLAB_NPM_TOKEN",
+      "--environment",
       "production",
       "-p",
       "proj",
@@ -48,6 +49,26 @@ describe("vercel wrapper", () => {
       "--scope",
       "team-x",
     ]);
+  });
+
+  it("keeps a plain variable plain on update (CLI 66 defaults production to sensitive)", async () => {
+    const { run, calls } = fakeRunner();
+    await createVercel("t", run).envSet("proj", "AUTH_MODE", "sso", "plain", "update");
+    expect(calls[0].args).toEqual([
+      "env",
+      "update",
+      "AUTH_MODE",
+      "--environment",
+      "production",
+      "-p",
+      "proj",
+      "--type",
+      "config",
+      "--yes",
+      "--scope",
+      "t",
+    ]);
+    expect(calls[0].input).toBe("sso");
   });
 
   it("fails without echoing the value when the CLI rejects it", async () => {

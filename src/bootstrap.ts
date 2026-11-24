@@ -35,6 +35,11 @@ export type BootstrapParams = {
   secretKey: Buffer;
   /** Issue a new admin app secret even though the app exists (recovery when it was lost). */
   rotateAdminSecret?: boolean;
+  /**
+   * The secret to store when one is issued (creation or rotation). Lets a deploy script save it
+   * in the host's env before the database changes; generated when omitted.
+   */
+  adminClientSecret?: string;
 };
 
 /**
@@ -49,7 +54,7 @@ export async function bootstrap(
   p: BootstrapParams
 ): Promise<{ adminClientSecret: string | null }> {
   const passwordHash = await hashPassword(p.adminPassword);
-  const secret = randomBytes(32).toString("base64url");
+  const secret = p.adminClientSecret ?? randomBytes(32).toString("base64url");
 
   return db.transaction(async (tx) => {
     const [existingUser] = await tx.select().from(users).where(eq(users.email, p.adminEmail));

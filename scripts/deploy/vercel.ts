@@ -88,12 +88,13 @@ export function createVercel(team: string, run: Runner = runVercelCli, opts = { 
       type: EnvType,
       mode: "add" | "update"
     ) {
-      const args = ["env", mode, key, "production", "-p", project];
+      const args =
+        mode === "add"
+          ? ["env", "add", key, "production", "-p", project]
+          : ["env", "update", key, "--environment", "production", "-p", project];
       if (mode === "add") args.push(type === "sensitive" ? "--sensitive" : "--no-sensitive");
-      else {
-        if (type === "sensitive") args.push("--sensitive");
-        args.push("--yes");
-      }
+      // `update` has no --no-sensitive; without a type, CLI 66 may turn production sensitive.
+      else args.push(...(type === "sensitive" ? ["--sensitive"] : ["--type", "config"]), "--yes");
       const res = await run([...args, ...scope], { input: value });
       if (res.code !== 0) throw new Error(`vercel env ${mode} ${key} failed (exit ${res.code})`);
     },

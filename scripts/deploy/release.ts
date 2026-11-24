@@ -1,4 +1,5 @@
 // `pnpm deploy:release [auth|admin|all]`: deploys `main` from GitHub, waits, then smoke tests.
+import { pathToFileURL } from "node:url";
 import { type DeployConfig, loadDeployConfig } from "./config.js";
 import { runWithProdEnv } from "./prod.js";
 import { createVercel, type Vercel } from "./vercel.js";
@@ -24,11 +25,10 @@ export async function release(cfg: DeployConfig, v: Vercel, targets: Target[]): 
   }
   if (!ok) return false;
   // Smoke runs with the production env loaded only into that process (the cron bearer).
-  const { code } = await runWithProdEnv(cfg, "smoke-run.ts");
-  return code === 0;
+  return (await runWithProdEnv(cfg, "smoke-run.ts")) === 0;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const arg = process.argv[2] ?? "all";
   if (arg === "--help" || !["auth", "admin", "all"].includes(arg)) {
     console.log("usage: pnpm deploy:release [auth|admin|all]");

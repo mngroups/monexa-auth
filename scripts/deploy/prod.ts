@@ -1,12 +1,12 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { DeployConfig } from "./config.js";
 
-const SECRET_MARKER = "__DEPLOY_SECRET__:";
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
+const PLACEHOLDER = "[SENSITIVE]";
 
 /**
  * Arguments for `vercel env run`. It runs from a fresh empty directory: the CLI also loads any
@@ -39,49 +39,64 @@ export function prodRunArgs(
 }
 
 /**
- * Runs a script under `vercel env run -e production`, so the production env exists only in
- * that child process: no env file is written. The child hands a secret back by printing one
- * marker line on stdout; every other line is echoed.
+ * Runs a script with the production env loaded only into that child (no env file). Inputs the
+ * child needs (a password, a new secret) go through `env`, never argv; the child never hands a
+ * secret back: callers create secrets themselves.
  */
 export function runWithProdEnv(
   cfg: DeployConfig,
   script: string,
   opts: { args?: string[]; env?: Record<string, string> } = {}
-): Promise<{ code: number; secret: string | null }> {
+): Promise<number> {
   return new Promise((resolve, reject) => {
     const run = prodRunArgs(cfg.auth.project, cfg.team, repoRoot, script, opts.args);
     const child = spawn("vercel", run.args, {
       cwd: run.cwd,
       // NODE_NO_WARNINGS: pg prints an sslmode notice on every connection.
       env: { ...process.env, NODE_NO_WARNINGS: "1", ...opts.env },
-      stdio: ["inherit", "pipe", "inherit"],
+      stdio: "inherit",
     });
-    let secret: string | null = null;
-    let buffer = "";
-    child.stdout.on("data", (chunk: Buffer) => {
-      buffer += chunk.toString();
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        if (line.startsWith(SECRET_MARKER)) secret = line.slice(SECRET_MARKER.length);
-        else process.stdout.write(`${line}\n`);
-      }
+    const cleanup = () => rmSync(run.cwd, { recursive: true, force: true });
+    child.on("error", (err) => {
+      cleanup();
+      reject(err);
     });
-    child.on("error", reject);
     child.on("close", (code) => {
-      if (buffer && !buffer.startsWith(SECRET_MARKER)) process.stdout.write(buffer);
-      resolve({ code: code ?? 1, secret });
+      cleanup();
+      resolve(code ?? 1);
     });
   });
 }
 
-/** Inside a `runWithProdEnv` child: hands a secret to the parent without printing it. */
-export function emitSecret(value: string): void {
-  process.stdout.write(`${SECRET_MARKER}${value}\n`);
+/**
+ * The direct (non-pooler) database URL for one-off scripts: Neon's synced
+ * DATABASE_URL_UNPOOLED first, then MIGRATION_DATABASE_URL. Vercel's placeholder for a
+ * value it cannot read never counts.
+ */
+export function pickDirectUrl(
+  env: Record<string, string | undefined>
+): { name: string; url: string } | null {
+  for (const name of ["DATABASE_URL_UNPOOLED", "MIGRATION_DATABASE_URL"]) {
+    const url = env[name];
+    if (url && url !== PLACEHOLDER) return { name, url };
+  }
+  return null;
 }
 
-/** Inside a child: migrations and one-off scripts use the direct connection, not the pooler. */
+/** Inside a child: point DATABASE_URL at the direct connection; logs the variable's name only. */
 export function useDirectDatabaseUrl(): void {
-  const direct = process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL_UNPOOLED;
-  if (direct && direct !== "[SENSITIVE]") process.env.DATABASE_URL = direct;
+  const direct = pickDirectUrl(process.env);
+  if (!direct) throw new Error("no readable direct database URL (DATABASE_URL_UNPOOLED)");
+  process.env.DATABASE_URL = direct.url;
+  console.log(`· database: ${direct.name}`);
+}
+
+/** An error whose message is written by these scripts and never contains a value. */
+export class DeployError extends Error {}
+
+/** A driver error's message can carry the query and its params: report only a code. */
+export function safeError(err: unknown): string {
+  if (err instanceof DeployError) return err.message;
+  const e = err as { code?: string; cause?: { code?: string }; name?: string };
+  return e.cause?.code ?? e.code ?? e.name ?? "error";
 }

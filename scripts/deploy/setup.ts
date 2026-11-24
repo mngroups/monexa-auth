@@ -3,6 +3,7 @@
 // Safe to re-run: existing keys are never regenerated, and nothing is ever deleted.
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type DeployConfig, loadDeployConfig } from "./config.js";
 import { type Action, desiredEnv, planEnv } from "./env-plan.js";
@@ -29,6 +30,15 @@ type Project = {
   nodeVersion?: string;
   link?: { repo?: string; org?: string };
 };
+
+async function projectExists(project: string): Promise<boolean> {
+  try {
+    await v.api(`/v9/projects/${project}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function ensureProject(side: "auth" | "admin"): Promise<Project | null> {
   const { project, repo } = cfg[side];
@@ -72,7 +82,9 @@ function linkLocally(p: Project) {
   const dir = `${repoRoot}.vercel`;
   mkdirSync(dir, { recursive: true });
   writeFileSync(`${dir}/project.json`, JSON.stringify({ projectId: p.id, orgId: p.accountId }));
-  const exclude = `${repoRoot}.git/info/exclude`;
+  // `.git` is a file in a worktree; ask git where the exclude file lives.
+  const gitPath = spawnSync("git", ["rev-parse", "--git-path", "info/exclude"], { cwd: repoRoot });
+  const exclude = resolve(repoRoot, gitPath.stdout.toString().trim());
   if (existsSync(exclude) && !readFileSync(exclude, "utf8").split("\n").includes(".vercel")) {
     appendFileSync(exclude, "\n.vercel\n");
   }
@@ -170,10 +182,11 @@ async function main(c: DeployConfig) {
   for (const side of ["auth", "admin"] as const) {
     const project = c[side].project;
     const configKeys = desired[side].filter((d) => d.value !== undefined).map((d) => d.key);
-    const values = await v
-      .envValues(project, configKeys)
-      .catch(() => ({}) as Record<string, string>);
-    const existing = (await v.envList(project).catch(() => [])).map((e) => ({
+    // Never plan against an unknown state: a failed read must stop setup, not look like
+    // "nothing exists" (that would plan fresh keys). A project missing in a dry run has no env.
+    const missingInDryRun = dry && !(await projectExists(project));
+    const values = missingInDryRun ? {} : await v.envValues(project, configKeys);
+    const existing = (missingInDryRun ? [] : await v.envList(project)).map((e) => ({
       ...e,
       value: values[e.key],
     }));

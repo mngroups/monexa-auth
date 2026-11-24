@@ -121,6 +121,18 @@ describe("bootstrap with rotateAdminSecret (lost admin app secret)", () => {
     expect((await bootstrap(db, params)).adminClientSecret).toBeNull();
   });
 
+  it("stores a caller-supplied secret, so the caller can save it elsewhere first", async () => {
+    const given = randomBytes(32).toString("base64url");
+    const { adminClientSecret } = await bootstrap(db, {
+      ...params,
+      rotateAdminSecret: true,
+      adminClientSecret: given,
+    });
+    expect(adminClientSecret).toBe(given);
+    const [row] = await db.select().from(apps).where(eq(apps.clientId, "monexa-admin"));
+    expect(decryptSecret(row?.clientSecretEnc as string, secretKey)).toBe(given);
+  });
+
   it("reads BOOTSTRAP_ROTATE_ADMIN_SECRET", () => {
     const env = {
       ADMIN_CLIENT_ID: "monexa-admin",
