@@ -1,0 +1,16 @@
+{
+  "team": "muhamadirfanm134s-projects",
+  "region": "sin1",
+  "gitlabPackageGroupId": "148122988",
+  "auth": {
+    "project": "monexa-auth",
+    "repo": "mngroups/monexa-auth",
+    "domain": "auth.mngroup.id",
+    "orgHint": "monexa"
+  },
+  "admin": {
+    "project": "monexa-auth-admin",
+    "repo": "mngroups/monexa-auth-admin",
+    "domain": "auth-admin.mngroup.id"
+  }
+}
