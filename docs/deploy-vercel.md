@@ -145,4 +145,5 @@ Reset the role's password in Neon (from `vercel integration open neon`: Connect 
 
 - **Cron:** Hobby plans run crons at most once a day, so the schedule is daily (`0 3 * * *`). On Pro it can be hourly.
 - **Cold starts:** the first request after idle loads the app and the OIDC provider. Keep the function region next to the database.
+- **Function region:** `vercel.json` pins `"regions": ["sin1"]`, next to the Neon database (a test checks it matches `deploy/vercel.config.json`). Without it Vercel runs functions in `iad1` (US East): every request and every query then crosses the Pacific. Check with the `x-vercel-id` response header: `sin1::sin1::…` is right, `sin1::iad1::…` is not.
 - **Docker instead:** the Dockerfile and the CLI cleanup still work. See the README's Deployment section.

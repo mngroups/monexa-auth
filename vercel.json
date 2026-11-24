@@ -3,6 +3,7 @@
   "installCommand": "NPMRC_PATH=/tmp/.npmrc sh scripts/write-npmrc.sh && NPM_CONFIG_USERCONFIG=/tmp/.npmrc pnpm install --frozen-lockfile",
   "buildCommand": "sh scripts/vercel-build.sh",
   "outputDirectory": "public",
+  "regions": ["sin1"],
   "functions": {
     "api/index.ts": {
       "includeFiles": "{public-assets,src/oidc/interactions/views,src/account/views}/**"

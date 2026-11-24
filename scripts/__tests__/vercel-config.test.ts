@@ -13,4 +13,9 @@ describe("vercel.json", () => {
     expect(config.installCommand).toContain("NPMRC_PATH=/tmp/.npmrc");
     expect(config.installCommand).toContain("NPM_CONFIG_USERCONFIG=/tmp/.npmrc");
   });
+
+  it("runs functions in the Neon database's region (sin1), not Vercel's default iad1", () => {
+    const deploy = JSON.parse(readFileSync(new URL("deploy/vercel.config.json", root), "utf8"));
+    expect(config.regions).toEqual([deploy.region]);
+  });
 });
